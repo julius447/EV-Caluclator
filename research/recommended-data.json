@@ -1,0 +1,252 @@
+{
+  "_meta": {
+    "purpose": "Recommended, sourced default data for the Ampy laddbox/EV savings calculator. Shaped like the engine data (window.AmpyEvCalcData). Pairs with DATA-DOSSIER.md. Maps to excel/laddbox-kalkylator-data.xlsx via the schema in excel/EXCEL-SCHEMA.md.",
+    "compiledBy": "DATA lead",
+    "date": "2026-06-09",
+    "conventions": {
+      "efficiencyKwhPer10km": "WLTP basis. Engine applies a SEPARATE 10% charging loss (chargerEfficiencyPct 0.90, energy/0.90). Do NOT inflate per-model figures for winter/charging or losses double-count.",
+      "homeRateSekPerKwh": "All-in MARGINAL kr/kWh incl. 25% moms (spot+rorlig elnat+energiskatt+paslag). Excludes fixed monthly fees.",
+      "rates_publicAcDc": "kr/kWh, public-network ad-hoc.",
+      "gronTeknik": "rate is a FRACTION (0.485 = 48.5%); cap is SEK per applicant.",
+      "_source_flags": "AMPY_MUST_PROVIDE = placeholder, do not publish without Ampy sign-off. RESEARCHED = sourced in DATA-DOSSIER.md."
+    }
+  },
+
+  "EV_MODELS": [
+    {
+      "id": "tesla-model-y",
+      "name": "Tesla Model Y",
+      "description": "Vanligast i Sverige",
+      "badge": null,
+      "available": true,
+      "efficiencyKwhPer10km": 1.69,
+      "onboardAcKw": 11,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "LR WLTP 16.9. Pre-Juniper LR basis; 2025+ Juniper RWD ~13.9 (more efficient -> conservative)."
+    },
+    {
+      "id": "volvo-ex30",
+      "name": "Volvo EX30",
+      "description": "Kompakt SUV",
+      "badge": "Populär",
+      "available": true,
+      "efficiencyKwhPer10km": 1.70,
+      "onboardAcKw": 11,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "Type-approval WLTP 17.0-17.1 (Single Motor / ER). Raised from prototype 1.65."
+    },
+    {
+      "id": "vw-id4",
+      "name": "Volkswagen ID.4",
+      "description": "Rymlig familjebil",
+      "badge": null,
+      "available": true,
+      "efficiencyKwhPer10km": 1.75,
+      "onboardAcKw": 11,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "WLTP ~17.0-17.7; real-world 171 Wh/km. KEEP."
+    },
+    {
+      "id": "kia-ev6",
+      "name": "Kia EV6",
+      "description": "Lång räckvidd",
+      "badge": null,
+      "available": true,
+      "efficiencyKwhPer10km": 1.72,
+      "onboardAcKw": 11,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "LR RWD ~16.5 WLTP / 176 Wh/km real-world. KEEP."
+    },
+    {
+      "id": "byd-atto-3",
+      "name": "BYD Atto 3",
+      "description": "Prisvärd SUV",
+      "badge": null,
+      "available": true,
+      "efficiencyKwhPer10km": 1.55,
+      "onboardAcKw": 7,
+      "_source": "RESEARCHED",
+      "_confidence": "medium",
+      "_note": "Lowered from prototype 1.78 (that was real-world 178 Wh/km, inconsistent with WLTP rows). True WLTP ~13.8-15.6."
+    },
+    {
+      "id": "annan",
+      "name": "Annan elbil",
+      "description": "Genomsnittlig förbrukning",
+      "badge": null,
+      "available": true,
+      "efficiencyKwhPer10km": 1.70,
+      "onboardAcKw": 11,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "17.0 kWh/100km WLTP market average (SUV/crossover-heavy mix). KEEP."
+    },
+    {
+      "id": "volvo-ex40",
+      "name": "Volvo EX40",
+      "description": "Storsäljare i Sverige",
+      "badge": null,
+      "available": false,
+      "efficiencyKwhPer10km": 1.70,
+      "onboardAcKw": 11,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "OPTIONAL ADD — actual 2025 #1 seller (8,788), currently missing from picker. WLTP 16.7. Set available=true to enable."
+    },
+    {
+      "id": "vw-id7",
+      "name": "Volkswagen ID.7",
+      "description": "Effektiv elsedan",
+      "badge": null,
+      "available": false,
+      "efficiencyKwhPer10km": 1.62,
+      "onboardAcKw": 11,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "OPTIONAL ADD — actual 2025 #2 seller (8,134), currently missing. Real-world 159 Wh/km. Set available=true to enable."
+    }
+  ],
+
+  "CHARGERS": [
+    {
+      "id": "amina-s",
+      "name": "Amina S",
+      "description": "Smart 11 kW laddbox",
+      "badge": "Rekommenderas",
+      "maxPowerKw": 11,
+      "priceSek": 12990,
+      "slug": "#",
+      "available": true,
+      "_source": "AMPY_MUST_PROVIDE",
+      "_note": "PLACEHOLDER name/price/URL. Replace with Ampy real SKU. Market mid-tier 11kW hardware ~9000-13000 kr."
+    },
+    {
+      "id": "easee-charge",
+      "name": "Easee Charge",
+      "description": "Kompakt och populär",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 10990,
+      "slug": "#",
+      "available": true,
+      "_source": "AMPY_MUST_PROVIDE",
+      "_note": "PLACEHOLDER name/price/URL. Replace with Ampy real SKU."
+    },
+    {
+      "id": "zaptec-go",
+      "name": "Zaptec Go",
+      "description": "Diskret design",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 11990,
+      "slug": "#",
+      "available": true,
+      "_source": "AMPY_MUST_PROVIDE",
+      "_note": "PLACEHOLDER name/price/URL. Replace with Ampy real SKU."
+    },
+    {
+      "id": "garo-entity",
+      "name": "Garo Entity",
+      "description": "Robust, svensktillverkad",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 13490,
+      "slug": "#",
+      "available": true,
+      "_source": "AMPY_MUST_PROVIDE",
+      "_note": "PLACEHOLDER name/price/URL. Replace with Ampy real SKU. Premium/22kW band ~13000-17000 kr."
+    }
+  ],
+
+  "REGIONS": {
+    "SE1": {
+      "label": "SE1 – Norra Sverige",
+      "homeRateSekPerKwh": 1.45,
+      "_source": "RESEARCHED",
+      "_confidence": "medium",
+      "_note": "Marginal all-in incl moms. KEEP (defensible upper bound)."
+    },
+    "SE2": {
+      "label": "SE2 – Norra Mellansverige",
+      "homeRateSekPerKwh": 1.50,
+      "_source": "RESEARCHED",
+      "_confidence": "medium",
+      "_note": "Lowered from prototype 1.60. Representative midpoint; non-reduced-tax SE2 households slightly higher."
+    },
+    "SE3": {
+      "label": "SE3 – Södra Mellansverige",
+      "homeRateSekPerKwh": 1.90,
+      "_source": "RESEARCHED",
+      "_confidence": "medium",
+      "_note": "Lowered from prototype 2.20 (which resembled AVERAGE house price, not marginal)."
+    },
+    "SE4": {
+      "label": "SE4 – Södra Sverige",
+      "homeRateSekPerKwh": 2.10,
+      "_source": "RESEARCHED",
+      "_confidence": "medium",
+      "_note": "Lowered from prototype 2.60 (only reached in extreme winter-peak months). Defensible upper bound ~2.4."
+    }
+  },
+
+  "RATES": {
+    "publicAcRateSekPerKwh": {
+      "value": 4.50,
+      "_source": "RESEARCHED",
+      "_confidence": "medium",
+      "_note": "Public AC normal-/destinationsladdning mid-band (3.00-5.79). KEEP. NOT home AC."
+    },
+    "publicDcRateSekPerKwh": {
+      "value": 5.50,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "Ad-hoc network AVERAGE. Lowered from prototype 5.99 (~9% high). Ad-hoc spread 4.99-6.30."
+    },
+    "chargerEfficiencyPct": {
+      "value": 0.90,
+      "_source": "RESEARCHED",
+      "_confidence": "high",
+      "_note": "Fraction. 10% charging loss applied as energy/0.90. Per-model figures must stay WLTP so this is not double-counted."
+    },
+    "gronTeknikRate": {
+      "value": 0.485,
+      "_source": "AMPY_MUST_PROVIDE",
+      "_confidence": "n/a",
+      "_note": "Fraction. 48.5% = statutory laddningspunkt skattereduktion rate. CONFIRM with Ampy / Skatteverket before publishing."
+    },
+    "gronTeknikCapPerApplicant": {
+      "value": 50000,
+      "_source": "AMPY_MUST_PROVIDE",
+      "_confidence": "n/a",
+      "_note": "SEK per applicant per year (statutory Grön Teknik cap). CONFIRM with Ampy."
+    },
+    "maxApplicants": {
+      "value": 2,
+      "_source": "AMPY_MUST_PROVIDE",
+      "_confidence": "n/a",
+      "_note": "Two co-owners -> effective household cap 100000 kr. CONFIRM with Ampy."
+    },
+    "uncertaintyBand": {
+      "value": 0.10,
+      "_source": "RESEARCHED",
+      "_confidence": "n/a",
+      "_note": "Fraction (+/-10%). Supports legal requirement to present the saving as a RANGE, not a fixed figure."
+    },
+    "_gronTeknikEligibilityWording": "Grön teknik-avdraget ger 48,5 % skattereduktion på arbets- och materialkostnad för installation av en laddningspunkt till elfordon. Avdraget dras direkt på fakturan. Taket är 50 000 kr per person och år och kan delas av upp till två personer som äger bostaden. Förutsätter tillräcklig skatt att reducera. (AMPY_MUST_PROVIDE — confirm wording vs Skatteverket.)"
+  },
+
+  "ADVANCED_DEFAULTS": {
+    "horizonYears": 10,
+    "annualKm": 15000,
+    "publicChargingPct": 50,
+    "publicChargingType": "dc",
+    "_source": "RESEARCHED",
+    "_note": "publicChargingPct is the 0-100 UI slider value (NOT a fraction). publicChargingType pairs with the DC rate."
+  },
+
+  "defaultRegion": "SE3"
+}

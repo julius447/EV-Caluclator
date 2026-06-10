@@ -1,0 +1,1108 @@
+/**
+ * Ampy — Battery Calculator CSS
+ * Fluent Snippets: set Run Location → Frontend
+ *
+ * All breakpoints use @container ampy so the calculator responds to its
+ * own container width rather than the viewport. Safe to load globally —
+ * every rule is scoped under .ampy-calc or .ampy-calc-outer.
+ */
+/* ── Container context ─────────────────────────────────────────────────── */
+.ampy-calc-outer {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  container-type: inline-size;
+  container-name: ampy;
+}
+
+/* ── Root tokens (scoped to component, not :root) ───────────────────────── */
+.ampy-calc {
+  --bg-primary:        rgb(247, 249, 251);
+  --bg-surface:        rgb(9, 11, 50);
+  --bg-subtle:         rgb(234, 239, 243);
+  --text-primary:      rgb(15, 18, 60);
+  --text-secondary:    rgb(86, 94, 130);
+  --text-inverse:      rgb(255, 255, 255);
+  /* a11y / WCAG 2.1 AA contrast (audit fix):
+     The teal is used both as a TEXT/icon colour on the light bg (badges,
+     outline buttons, segmented + tick "active", links) and as the CTA button
+     fill behind WHITE text. The original rgb(0,169,145) failed AA in both
+     directions (≈2.9:1 white-on-teal, ≈2.8:1 teal-on-light-bg). Darkened to
+     rgb(0,125,107): ≈5.07:1 white-on-teal and ≈4.80:1 teal-on-light-bg — both
+     pass AA for normal text.
+     ── OWNER-FLAGGED ──────────────────────────────────────────────────────
+     These --action-* tokens are a LOCAL prototype copy. The shared
+     FluentSnippets stylesheet defines the same tokens and is consumed by the
+     LED-kalkylatorn and battery-kalkylatorn. Porting this darker teal to the
+     shared snippet will change those calculators' CTA/chart colours too —
+     re-check their contrast + chart legibility before promoting this change. */
+  --action-primary:    rgb(0, 125, 107);
+  --action-secondary:  rgb(0, 150, 130);
+  --state-success:     rgb(57, 194, 129);
+  --state-error:       rgb(214, 76, 76);
+  --state-warning:     rgb(240, 175, 56);
+  --border-default:    rgba(15, 18, 60, 0.12);
+  --border-focus:      rgb(0, 125, 107); /* a11y: matches darkened --action-primary */
+
+  --on-surface-text:           rgba(255, 255, 255, 0.94);
+  --on-surface-text-muted:     rgba(255, 255, 255, 0.66);
+  /* a11y / WCAG 2.1 AA (audit fix): faint captions (hero range, trio-sub,
+     stream sub/pct) on the dark surface were rgba(255,255,255,0.42) ≈ 4.0:1 —
+     fails AA for normal text. Raised to 0.55 ≈ 6.1:1. OWNER-FLAGGED: this
+     token also lives in the shared snippet (LED/battery calcs) — porting it
+     lightens their faint captions too; re-check those before promoting. */
+  --on-surface-text-faint:     rgba(255, 255, 255, 0.55);
+  --on-surface-border:         rgba(255, 255, 255, 0.14);
+  --on-surface-border-strong:  rgba(255, 255, 255, 0.28);
+  --on-surface-subtle-bg:      rgba(255, 255, 255, 0.06);
+
+  --chart-stream-1: rgb(0, 169, 145);
+  --chart-stream-2: rgb(57, 194, 129);
+  --chart-stream-3: rgb(122, 208, 198);
+  --chart-stream-4: rgb(160, 184, 196);
+
+  --chart-line-loss:    rgb(240, 175, 56);
+  --chart-line-profit:  rgb(0, 169, 145);
+  --chart-zone-loss:    rgba(240, 175, 56, 0.18);
+  --chart-zone-profit:  rgba(0, 169, 145, 0.16);
+
+  --spacing-xs:  0.5rem;
+  --spacing-sm:  0.75rem;
+  --spacing-md:  1rem;
+  --spacing-lg:  1.5rem;
+  --spacing-xl:  2rem;
+  --spacing-2xl: 3rem;
+
+  --radius-sm:   0.6rem;
+  --radius-md:   1.2rem;
+  --radius-lg:   2rem;
+  --radius-full: 999rem;
+
+  --shadow-sm: 0 1px 2px rgba(15, 18, 60, 0.06);
+  --shadow-md: 0 0.4rem 1.2rem rgba(15, 18, 60, 0.08);
+  --shadow-lg: 0 1.6rem 4rem rgba(15, 18, 60, 0.14);
+
+  --motion-fast:   150ms;
+  --motion-normal: 300ms;
+  --easing:        cubic-bezier(0.2, 0, 0.2, 1);
+
+  --fs-xs:  clamp(1rem,   calc(1rem   + (1.2 - 1)   * ((100cqi - 320px) / 960)), 1.2rem);
+  --fs-sm:  clamp(1.2rem, calc(1.2rem + (1.4 - 1.2) * ((100cqi - 320px) / 960)), 1.4rem);
+  --fs-md:  clamp(1.7rem, calc(1.7rem + (1.8 - 1.7) * ((100cqi - 320px) / 960)), 1.8rem);
+  --fs-lg:  clamp(1.8rem, calc(1.8rem + (2.8 - 1.8) * ((100cqi - 320px) / 960)), 2.8rem);
+  --fs-xl:  clamp(2rem,   calc(2rem   + (3.6 - 2)   * ((100cqi - 320px) / 960)), 3.6rem);
+  --fs-2xl: clamp(2.2rem, calc(2.2rem + (4.8 - 2.2) * ((100cqi - 320px) / 960)), 4.8rem);
+  --fs-3xl: clamp(2.6rem, calc(2.6rem + (6   - 2.6) * ((100cqi - 320px) / 960)), 6rem);
+  --fs-4xl: clamp(4rem,   calc(4rem   + (7.5 - 4)   * ((100cqi - 320px) / 960)), 7.5rem);
+
+  --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body:    "Outfit", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  box-sizing: border-box;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  width: 100%;
+  max-width: 100%;
+}
+
+.ampy-calc *,
+.ampy-calc *::before,
+.ampy-calc *::after { box-sizing: border-box; }
+
+.ampy-calc p,
+.ampy-calc h1, .ampy-calc h2, .ampy-calc h3, .ampy-calc h4, .ampy-calc h5,
+.ampy-calc ul, .ampy-calc ol, .ampy-calc figure { margin: 0; padding: 0; }
+.ampy-calc ul, .ampy-calc ol { list-style: none; }
+:where(.ampy-calc button) { font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; }
+.ampy-calc a { color: var(--action-primary); text-decoration: none; }
+.ampy-calc a:hover { text-decoration: underline; }
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.ampy-calc__t-display    { font-family: var(--font-heading); font-size: var(--fs-4xl); line-height: 1.0;  font-weight: 700; letter-spacing: -0.02em; }
+.ampy-calc__t-3xl        { font-family: var(--font-heading); font-size: var(--fs-3xl); line-height: 1.1;  font-weight: 700; letter-spacing: -0.02em; }
+.ampy-calc__t-2xl        { font-family: var(--font-heading); font-size: var(--fs-2xl); line-height: 1.2;  font-weight: 700; letter-spacing: -0.015em; }
+.ampy-calc__t-heading    { font-family: var(--font-heading); font-size: var(--fs-xl);  line-height: 1.3;  font-weight: 600; letter-spacing: -0.01em; }
+.ampy-calc__t-subheading { font-family: var(--font-heading); font-size: var(--fs-lg);  line-height: 1.4;  font-weight: 500; }
+.ampy-calc__t-body       { font-family: var(--font-body);    font-size: var(--fs-md);  line-height: 1.5;  font-weight: 400; }
+.ampy-calc__t-small      { font-family: var(--font-body);    font-size: var(--fs-sm);  line-height: 1.5;  font-weight: 400; }
+.ampy-calc__t-caption    { font-family: var(--font-body);    font-size: var(--fs-xs);  line-height: 1.5;  font-weight: 400; }
+.ampy-calc__t-mono       { font-family: var(--font-mono); font-feature-settings: "tnum" 1, "lnum" 1; }
+
+/* ── Container ──────────────────────────────────────────────────────────── */
+.ampy-calc__container {
+  max-width: 128rem;
+  margin: 0 auto;
+  padding: var(--spacing-xl) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.ampy-calc__header { display: flex; flex-direction: column; gap: var(--spacing-xs); text-align: left; }
+.ampy-calc__header-label {
+  color: var(--text-secondary); font-weight: 500;
+  font-size: var(--fs-xs); letter-spacing: 0.04em; text-transform: uppercase;
+}
+.ampy-calc__header h2 { max-width: 80rem; color: var(--text-primary); font-family: var(--font-body); }
+
+/* ── Calculator layout ──────────────────────────────────────────────────── */
+.ampy-calc__main {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--spacing-xl);
+  align-items: start;
+}
+.ampy-calc__result-stack { display: flex; flex-direction: column; gap: var(--spacing-md); min-width: 0; }
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+.ampy-calc__card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: var(--spacing-lg);
+  min-width: 0;
+}
+.ampy-calc__card--surface {
+  background: var(--bg-surface);
+  color: var(--text-inverse);
+  border-color: transparent;
+  box-shadow: var(--shadow-lg);
+  background-image:
+    radial-gradient(120% 60% at 90% -10%, rgba(0, 169, 145, 0.28), transparent 60%),
+    radial-gradient(80% 50% at -10% 110%, rgba(57, 194, 129, 0.16), transparent 60%);
+}
+.ampy-calc__card--surface .ampy-calc__t-caption,
+.ampy-calc__card--surface .ampy-calc__field-label,
+.ampy-calc__card--surface .ampy-calc__t-small { color: var(--on-surface-text-muted); }
+
+/* ── Field block ────────────────────────────────────────────────────────── */
+.ampy-calc__field { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.ampy-calc__field-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--spacing-md); flex-wrap: wrap;
+}
+.ampy-calc__field-label {
+  font-family: var(--font-heading); font-size: var(--fs-sm);
+  font-weight: 600; color: var(--text-primary); letter-spacing: 0.01em;
+}
+.ampy-calc__field-hint { font-size: var(--fs-xs); color: var(--text-secondary); }
+.ampy-calc__field-divider { height: 1px; background: var(--border-default); border: 0; margin: var(--spacing-xs) 0; }
+
+/* ── Battery selector ───────────────────────────────────────────────────── */
+.ampy-calc__selector { position: relative; }
+.ampy-calc__selector-button {
+  display: flex; align-items: center; gap: var(--spacing-md);
+  width: 100%; padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-primary); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); text-align: left;
+  transition: border-color var(--motion-fast) var(--easing), box-shadow var(--motion-fast) var(--easing);
+}
+.ampy-calc__selector-button:hover { border-color: var(--text-secondary); }
+.ampy-calc__selector-button:focus-visible {
+  outline: none; border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.25);
+}
+.ampy-calc__selector-img {
+  width: 4.8rem; height: 4.8rem; flex-shrink: 0;
+  border-radius: var(--radius-sm); background: var(--bg-subtle);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.ampy-calc__selector-img svg { width: 60%; height: 60%; color: var(--text-secondary); }
+.ampy-calc__selector-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.ampy-calc__selector-name {
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ampy-calc__selector-best { font-size: var(--fs-xs); color: var(--text-secondary); }
+.ampy-calc__selector-chevron { color: var(--text-secondary); transition: transform var(--motion-fast); }
+.ampy-calc__selector[aria-expanded="true"] .ampy-calc__selector-chevron { transform: rotate(180deg); }
+
+.ampy-calc__badge {
+  display: inline-block; padding: 0.15rem var(--spacing-xs);
+  background: transparent; color: var(--action-primary);
+  border: 1px solid var(--action-primary);
+  font-size: var(--fs-xs); font-weight: 600;
+  border-radius: var(--radius-full); letter-spacing: 0.02em;
+}
+.ampy-calc__badge--muted { color: var(--text-secondary); border-color: var(--border-default); }
+
+.ampy-calc__selector-list {
+  position: absolute; top: calc(100% + var(--spacing-xs)); left: 0; right: 0;
+  z-index: 30; background: var(--bg-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg); max-height: 50rem; overflow-y: auto;
+  padding: var(--spacing-xs); display: none;
+}
+.ampy-calc__selector[aria-expanded="true"] .ampy-calc__selector-list { display: block; }
+.ampy-calc__selector-option {
+  display: flex; align-items: center; gap: var(--spacing-md);
+  width: 100%; padding: var(--spacing-sm); text-align: left;
+  border-radius: var(--radius-sm); transition: background var(--motion-fast);
+}
+.ampy-calc__selector-option:hover { background: var(--bg-subtle); }
+.ampy-calc__selector-option:focus-visible {
+  outline: none; background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 2px var(--border-focus);
+}
+.ampy-calc__selector-option[aria-selected="true"] { background: var(--bg-subtle); }
+.ampy-calc__selector-option:disabled,
+.ampy-calc__selector-option[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Capacity slider ────────────────────────────────────────────────────── */
+.ampy-calc__slider-wrap { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.ampy-calc__slider-value { font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); font-size: var(--fs-lg); }
+.ampy-calc__slider-value sub { color: var(--text-secondary); font-size: var(--fs-sm); font-weight: 500; }
+.ampy-calc__slider { position: relative; height: 4.4rem; user-select: none; touch-action: pan-y; }
+.ampy-calc__slider-track {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  left: 1.2rem; right: 1.2rem; height: 0.6rem;
+  background: var(--bg-subtle); border-radius: var(--radius-full);
+}
+.ampy-calc__slider-fill {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  left: 1.2rem; height: 0.6rem;
+  background: linear-gradient(90deg, var(--action-primary), var(--state-success));
+  border-radius: var(--radius-full); transition: width var(--motion-normal) var(--easing);
+}
+.ampy-calc__slider-thumb {
+  position: absolute; top: 50%;
+  width: 2.4rem; height: 2.4rem;
+  background: var(--bg-primary); border: 3px solid var(--action-primary);
+  border-radius: var(--radius-full); transform: translate(-50%, -50%);
+  transition: left var(--motion-normal) var(--easing), box-shadow var(--motion-fast), transform var(--motion-fast);
+  box-shadow: var(--shadow-md); cursor: grab;
+}
+/* a11y / touch target: the thumb is 2.4rem visually but its draggable hit
+   area must be ≥44px. An invisible pseudo-element expands the pointer target
+   to 4.4rem without changing the visible thumb size. */
+.ampy-calc__slider-thumb::before {
+  content: "";
+  position: absolute; top: 50%; left: 50%;
+  width: 4.4rem; height: 4.4rem;
+  transform: translate(-50%, -50%);
+}
+.ampy-calc__slider-thumb:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.08); }
+.ampy-calc__slider:focus-within .ampy-calc__slider-thumb {
+  box-shadow: 0 0 0 4px rgba(0, 169, 145, 0.25), var(--shadow-md);
+}
+.ampy-calc__slider-ticks {
+  display: flex; justify-content: space-between;
+  padding: 0 1.2rem; margin-top: var(--spacing-xs);
+  overflow: hidden;
+}
+.ampy-calc__slider-tick {
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-secondary);
+  cursor: pointer; padding: 0.2rem 0.4rem; border-radius: var(--radius-sm);
+  transition: color var(--motion-fast), background var(--motion-fast);
+  flex-shrink: 1; min-width: 0;
+}
+.ampy-calc__slider-tick:hover { color: var(--text-primary); }
+.ampy-calc__slider-tick--active { color: var(--action-primary); font-weight: 700; }
+/* a11y / touch target (WCAG 2.5.5): tick chips are tiny. On touch pointers
+   grow the tappable box to ≥44px tall via a transparent ::before overlay,
+   leaving the visible label size unchanged. */
+@media (pointer: coarse) {
+  .ampy-calc__slider-tick { position: relative; }
+  .ampy-calc__slider-tick::before {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 4.4rem; width: 100%; height: 4.4rem;
+  }
+}
+
+.ampy-calc__locked-value {
+  display: inline-flex; align-items: center; gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-subtle);
+  border-radius: var(--radius-md); font-family: var(--font-mono);
+  font-weight: 600; color: var(--text-primary);
+}
+.ampy-calc__locked-value svg { color: var(--text-secondary); }
+
+/* ── Segmented control ──────────────────────────────────────────────────── */
+.ampy-calc__segmented {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0.4rem; padding: 0.4rem;
+  background: var(--bg-subtle); border-radius: var(--radius-md);
+}
+.ampy-calc__segmented-option {
+  padding: var(--spacing-sm) var(--spacing-xs);
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  color: var(--text-secondary); background: transparent;
+  border-radius: var(--radius-sm);
+  transition: background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
+  text-align: center;
+}
+.ampy-calc__segmented-option:hover { color: var(--text-primary); }
+.ampy-calc__segmented-option:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.3); }
+.ampy-calc__segmented-option[aria-pressed="true"] {
+  background: var(--bg-primary); color: var(--action-primary); box-shadow: var(--shadow-sm);
+}
+/* a11y / touch target (WCAG 2.5.5): ensure each segment is ≥44px tall on touch. */
+@media (pointer: coarse) {
+  .ampy-calc__segmented-option { min-height: 4.4rem; }
+}
+
+/* ── Toggle ─────────────────────────────────────────────────────────────── */
+.ampy-calc__toggle {
+  display: inline-flex; background: var(--bg-subtle);
+  border-radius: var(--radius-full); padding: 0.4rem; gap: 0.2rem;
+}
+.ampy-calc__toggle-option {
+  padding: 0.6rem var(--spacing-md); border-radius: var(--radius-full);
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  transition: background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
+  min-width: 6.4rem; text-align: center;
+}
+.ampy-calc__toggle-option:hover:not([aria-pressed="true"]) { color: var(--text-primary); }
+.ampy-calc__toggle-option:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.3); }
+.ampy-calc__toggle-option[aria-pressed="true"] {
+  background: var(--action-primary); color: var(--text-inverse); box-shadow: var(--shadow-sm);
+}
+.ampy-calc__toggle--disabled .ampy-calc__toggle-option { opacity: 0.5; cursor: not-allowed; }
+/* a11y / touch target (WCAG 2.5.5): AC/DC toggle pills ≥44px tall on touch. */
+@media (pointer: coarse) {
+  .ampy-calc__toggle-option {
+    min-height: 4rem; display: inline-flex; align-items: center; justify-content: center;
+  }
+}
+
+/* ── ROI switch (role=switch) ───────────────────────────────────────────── */
+.ampy-calc__roi-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--spacing-md); flex-wrap: wrap;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--on-surface-subtle-bg);
+  border: 1px solid var(--on-surface-border);
+  border-radius: var(--radius-md);
+}
+.ampy-calc__roi-toggle-text {
+  display: inline-flex; align-items: center; position: relative;
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text);
+}
+.ampy-calc__switch {
+  display: inline-flex; align-items: center; gap: var(--spacing-sm);
+  padding: 0.2rem; border-radius: var(--radius-full); flex-shrink: 0;
+}
+.ampy-calc__switch:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.4); }
+/* a11y / touch target (WCAG 2.5.5): the switch track is 2.6rem tall; ensure
+   the interactive button clears 44px on touch. */
+@media (pointer: coarse) {
+  .ampy-calc__switch { min-height: 4.4rem; }
+}
+.ampy-calc__switch-track {
+  position: relative; width: 4.6rem; height: 2.6rem; flex-shrink: 0;
+  background: var(--on-surface-border-strong); border-radius: var(--radius-full);
+  transition: background var(--motion-fast) var(--easing);
+}
+.ampy-calc__switch-thumb {
+  position: absolute; top: 0.3rem; left: 0.3rem;
+  width: 2rem; height: 2rem; border-radius: var(--radius-full);
+  background: var(--text-inverse); box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-fast) var(--easing);
+}
+.ampy-calc__switch[aria-checked="true"] .ampy-calc__switch-track { background: var(--action-primary); }
+.ampy-calc__switch[aria-checked="true"] .ampy-calc__switch-thumb { transform: translateX(2rem); }
+.ampy-calc__switch-state {
+  font-family: var(--font-heading); font-size: var(--fs-xs); font-weight: 600;
+  color: var(--on-surface-text-muted); min-width: 9.2rem; text-align: left;
+  letter-spacing: 0.01em;
+}
+
+/* ── Stepper ────────────────────────────────────────────────────────────── */
+.ampy-calc__stepper {
+  display: inline-flex; align-items: center;
+  background: var(--bg-subtle); border-radius: var(--radius-full); padding: 0.3rem;
+}
+.ampy-calc__stepper-btn {
+  width: 3.6rem; height: 3.6rem; border-radius: var(--radius-full);
+  color: var(--text-primary); font-weight: 700; font-size: var(--fs-lg);
+  transition: background var(--motion-fast);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ampy-calc__stepper-btn:hover:not(:disabled) { background: var(--bg-primary); }
+.ampy-calc__stepper-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.3); }
+.ampy-calc__stepper-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ampy-calc__stepper-value {
+  font-family: var(--font-mono); font-weight: 700;
+  min-width: 4rem; text-align: center; color: var(--text-primary); font-size: var(--fs-md);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.ampy-calc__btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg); border-radius: var(--radius-md);
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  transition: opacity var(--motion-fast), background var(--motion-fast), color var(--motion-fast),
+              box-shadow var(--motion-fast), transform var(--motion-fast);
+  text-decoration: none; min-height: 4.8rem;
+}
+.ampy-calc__btn:hover { opacity: 0.92; }
+.ampy-calc__btn:active { opacity: 0.82; transform: translateY(1px); }
+.ampy-calc__btn:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(0, 169, 145, 0.35); }
+.ampy-calc__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ampy-calc__btn--primary { background: var(--action-primary); color: var(--text-inverse); box-shadow: var(--shadow-md); }
+.ampy-calc__btn--secondary { background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-default); }
+.ampy-calc__card--surface .ampy-calc__btn--secondary {
+  background: var(--on-surface-subtle-bg); color: var(--text-inverse); border-color: var(--on-surface-border-strong);
+}
+.ampy-calc__btn--ghost { background: transparent; color: var(--text-primary); }
+.ampy-calc__card--surface .ampy-calc__btn--ghost { color: var(--text-inverse); }
+.ampy-calc__btn--outline { background: transparent; color: var(--action-primary); border: 1.5px solid var(--action-primary); }
+.ampy-calc__btn--block { width: 100%; }
+.ampy-calc__btn--lg { padding: var(--spacing-md) var(--spacing-xl); min-height: 5.6rem; font-size: var(--fs-md); }
+
+.ampy-calc__btn-spinner {
+  width: 1.6rem; height: 1.6rem; border: 2px solid currentColor;
+  border-right-color: transparent; border-radius: var(--radius-full);
+  animation: ampy-spin 0.8s linear infinite;
+}
+@keyframes ampy-spin { to { transform: rotate(360deg); } }
+
+/* ── Disclosure ─────────────────────────────────────────────────────────── */
+.ampy-calc__disclosure { border-top: 1px solid var(--border-default); padding-top: var(--spacing-md); }
+.ampy-calc__disclosure-summary {
+  display: flex; align-items: baseline; gap: var(--spacing-xs);
+  font-family: var(--font-heading); font-weight: 600; color: var(--text-primary);
+  list-style: none; cursor: pointer; padding: var(--spacing-xs) 0;
+}
+.ampy-calc__disclosure-summary::after { align-self: center; }
+.ampy-calc__disclosure-summary::-webkit-details-marker { display: none; }
+.ampy-calc__disclosure-summary::after {
+  content: "▾"; margin-left: auto; color: var(--text-secondary);
+  transition: transform var(--motion-fast);
+}
+.ampy-calc__disclosure[open] .ampy-calc__disclosure-summary::after { transform: rotate(180deg); }
+.ampy-calc__disclosure-summary:focus-visible {
+  outline: none; box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.3); border-radius: var(--radius-sm);
+}
+.ampy-calc__disclosure-content { padding-top: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
+
+/* ── Text inputs ────────────────────────────────────────────────────────── */
+.ampy-calc__input,
+.ampy-calc__select {
+  width: 100%; padding: var(--spacing-sm) var(--spacing-md);
+  font: inherit; color: var(--text-primary); background: var(--bg-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast); min-height: 4.8rem;
+}
+.ampy-calc__input:hover, .ampy-calc__select:hover { border-color: var(--text-secondary); }
+.ampy-calc__input:focus, .ampy-calc__select:focus {
+  outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.2);
+}
+.ampy-calc__input--error { border-color: var(--state-error); }
+.ampy-calc__input--error:focus { box-shadow: 0 0 0 3px rgba(214, 76, 76, 0.2); }
+.ampy-calc__input-error { color: var(--state-error); font-size: var(--fs-xs); margin-top: var(--spacing-xs); }
+
+/* ── Results panel ──────────────────────────────────────────────────────── */
+.ampy-calc__hero { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.ampy-calc__hero-label {
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text-muted); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ampy-calc__hero-value {
+  font-family: var(--font-heading); font-size: var(--fs-3xl); line-height: 1.0;
+  font-weight: 700; color: var(--text-inverse); letter-spacing: -0.02em;
+  display: inline-flex; align-items: baseline; gap: 0.6rem;
+}
+.ampy-calc__hero-value sup { font-size: 0.4em; font-weight: 600; color: var(--on-surface-text-muted); margin-left: 0.2rem; align-self: flex-start; }
+.ampy-calc__hero-unit { font-size: var(--fs-xl); color: var(--on-surface-text-muted); font-weight: 500; }
+.ampy-calc__hero-sub  { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+.ampy-calc__return { display: flex; flex-direction: column; gap: var(--spacing-xs); padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border); }
+.ampy-calc__return-value {
+  font-family: var(--font-heading); font-size: var(--fs-2xl); line-height: 1.2;
+  font-weight: 700; color: var(--state-success); display: inline-flex; align-items: baseline; gap: 0.6rem;
+}
+.ampy-calc__return-value .ampy-calc__hero-unit { color: var(--on-surface-text-muted); }
+.ampy-calc__return-range { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+/* ── Streams ────────────────────────────────────────────────────────────── */
+.ampy-calc__streams { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.ampy-calc__streams-bar {
+  width: 100%; height: 2.4rem; border-radius: var(--radius-full);
+  background: var(--on-surface-subtle-bg); overflow: hidden; display: flex;
+}
+.ampy-calc__streams-segment { height: 100%; transition: width var(--motion-normal) var(--easing); }
+.ampy-calc__streams-legend { display: grid; grid-template-columns: 1fr; gap: var(--spacing-xs); }
+.ampy-calc__stream-row {
+  display: grid; grid-template-columns: 1.2rem 1fr auto;
+  align-items: baseline; gap: var(--spacing-sm); padding: 0.4rem 0;
+}
+.ampy-calc__stream-dot { width: 1.2rem; height: 1.2rem; border-radius: var(--radius-full); align-self: center; }
+.ampy-calc__stream-name { color: var(--on-surface-text); font-size: var(--fs-sm); font-weight: 500; }
+.ampy-calc__stream-name small { display: block; color: var(--on-surface-text-faint); font-size: var(--fs-xs); font-weight: 400; }
+.ampy-calc__stream-value {
+  font-family: var(--font-mono); color: var(--on-surface-text); font-weight: 600;
+  font-size: var(--fs-sm); text-align: right; white-space: nowrap;
+}
+.ampy-calc__stream-pct { color: var(--on-surface-text-faint); font-weight: 400; font-size: var(--fs-xs); margin-left: 0.6rem; }
+.ampy-calc__stream-row--zero { opacity: 0.55; }
+
+/* ── Payback chart ──────────────────────────────────────────────────────── */
+.ampy-calc__chart {
+  width: 100%; aspect-ratio: 2.5 / 1;
+  background: var(--on-surface-subtle-bg); border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-md) var(--spacing-xs) var(--spacing-md);
+  position: relative; min-height: 32rem;
+  --be-top-h:  3.2rem;
+  --be-axis-h: 4.4rem;
+}
+.ampy-calc__chart-inner {
+  position: relative; width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+}
+.ampy-calc__chart-top  { height: var(--be-top-h); position: relative; margin-bottom: 0.2rem; }
+.ampy-calc__chart-plot { flex: 1; min-height: 0; position: relative; }
+.ampy-calc__chart-plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ampy-calc__chart-axis { height: var(--be-axis-h); position: relative; margin-top: 0.2rem; }
+.ampy-calc__chart-empty {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; text-align: center; padding: var(--spacing-lg);
+  color: var(--on-surface-text-muted);
+}
+.ampy-calc__chart-corner {
+  position: absolute; pointer-events: none; white-space: nowrap;
+  font-family: var(--font-heading); line-height: 1.2;
+}
+.ampy-calc__chart-corner--end-value {
+  top: 0; right: 0; font-family: var(--font-mono); font-weight: 700;
+  font-size: clamp(1.5rem, 1.5rem + 0.2vw, 1.7rem); color: var(--chart-line-profit);
+}
+.ampy-calc__chart-corner--end-value.is-loss { color: var(--chart-line-loss); }
+.ampy-calc__chart-corner--today,
+.ampy-calc__chart-corner--end-axis {
+  bottom: 0; color: var(--on-surface-text-muted); font-weight: 500;
+  font-size: clamp(1.3rem, 1.3rem + 0.15vw, 1.5rem);
+}
+.ampy-calc__chart-corner--today    { left: 0; }
+.ampy-calc__chart-corner--end-axis { right: 0; }
+.ampy-calc__be-marker {
+  position: absolute;
+  left: clamp(8%, var(--be-x, 50%), 92%);
+  top: 0; bottom: 0; transform: translateX(-50%); pointer-events: none;
+  --plot-top: calc(var(--be-top-h, 3.2rem) + 0.2rem);
+  --plot-bot: calc(var(--be-axis-h, 4.4rem) + 0.2rem);
+  --plot-h:   calc(100% - var(--plot-top) - var(--plot-bot));
+}
+.ampy-calc__be-dot {
+  position: absolute;
+  top: calc(var(--plot-top) + var(--plot-h) * (1 - var(--be-y-frac, 0.5)));
+  left: 50%; width: 1.2rem; height: 1.2rem; border-radius: 50%;
+  background: var(--chart-line-profit); transform: translate(-50%, -50%);
+}
+.ampy-calc__be-line {
+  position: absolute;
+  top: calc(var(--plot-top) + var(--plot-h) * (1 - var(--be-y-frac, 0.5)) + 0.7rem);
+  bottom: var(--plot-bot); left: 50%; width: 0;
+  border-left: 1px dashed rgba(255, 255, 255, 0.34); transform: translateX(-50%);
+}
+.ampy-calc__be-label {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  white-space: nowrap; text-align: center; line-height: 1.15;
+}
+.ampy-calc__be-caption {
+  font-family: var(--font-heading); font-size: clamp(1.3rem, 1.3rem + 0.1vw, 1.4rem);
+  font-weight: 500; color: var(--on-surface-text);
+}
+.ampy-calc__be-time {
+  font-family: var(--font-heading); font-size: clamp(1.3rem, 1.3rem + 0.15vw, 1.5rem);
+  font-weight: 700; color: var(--chart-line-profit); margin-top: 0.1rem;
+}
+.ampy-calc__chart.is-no-payback .ampy-calc__chart-corner,
+.ampy-calc__chart.is-no-payback .ampy-calc__be-marker { display: none; }
+.ampy-calc__chart.is-no-be      .ampy-calc__be-marker { display: none; }
+.ampy-calc__chart.is-be-early   .ampy-calc__chart-corner--today { display: none; }
+
+/* ── Cumulative callout ─────────────────────────────────────────────────── */
+.ampy-calc__cumulative {
+  display: flex; align-items: baseline; gap: var(--spacing-sm); flex-wrap: wrap;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: linear-gradient(90deg, rgba(0,169,145,0.18), rgba(57,194,129,0.10));
+  border: 1px solid var(--on-surface-border-strong); border-radius: var(--radius-md);
+}
+.ampy-calc__cumulative-label  { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+.ampy-calc__cumulative-value  { font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 700; color: var(--text-inverse); line-height: 1.3; }
+.ampy-calc__cumulative-suffix { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+/* ── Spec table ─────────────────────────────────────────────────────────── */
+.ampy-calc__spec-table { width: 100%; border-collapse: collapse; }
+.ampy-calc__spec-table th,
+.ampy-calc__spec-table td {
+  padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--on-surface-border);
+  font-size: var(--fs-sm); text-align: left; vertical-align: top;
+}
+.ampy-calc__spec-table th { color: var(--on-surface-text-muted); font-weight: 500; }
+.ampy-calc__spec-table td { color: var(--on-surface-text); font-family: var(--font-mono); font-weight: 600; text-align: right; }
+.ampy-calc__spec-table tr:last-child th,
+.ampy-calc__spec-table tr:last-child td { border-bottom: 0; }
+
+/* ── Info note ──────────────────────────────────────────────────────────── */
+.ampy-calc__info-note {
+  display: flex; gap: var(--spacing-md); align-items: flex-start;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(240, 175, 56, 0.12); border: 1px solid rgba(240, 175, 56, 0.4);
+  border-radius: var(--radius-md);
+}
+.ampy-calc__info-note-icon { flex-shrink: 0; color: var(--state-warning); width: 2rem; height: 2rem; }
+.ampy-calc__info-note-content { color: var(--on-surface-text); font-size: var(--fs-sm); line-height: 1.5; }
+.ampy-calc__info-note-content strong { display: block; margin-bottom: 0.2rem; font-weight: 600; }
+
+/* ── CTA stack ──────────────────────────────────────────────────────────── */
+.ampy-calc__cta-stack {
+  display: flex; flex-direction: column; gap: var(--spacing-md);
+  padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border);
+}
+
+/* ── Lead form ──────────────────────────────────────────────────────────── */
+.ampy-calc__lead-form {
+  display: none; flex-direction: column; gap: var(--spacing-md);
+  padding: var(--spacing-md); background: var(--on-surface-subtle-bg);
+  border: 1px solid var(--on-surface-border-strong); border-radius: var(--radius-md);
+}
+.ampy-calc__lead-form.is-open { display: flex; }
+.ampy-calc__lead-form-grid { display: grid; grid-template-columns: 1fr; gap: var(--spacing-md); }
+.ampy-calc__card--surface .ampy-calc__input,
+.ampy-calc__card--surface .ampy-calc__select {
+  background: var(--bg-surface); color: var(--text-inverse); border-color: var(--on-surface-border-strong);
+  -webkit-text-fill-color: var(--text-inverse);
+}
+.ampy-calc__card--surface .ampy-calc__input::placeholder { color: var(--on-surface-text-faint); }
+.ampy-calc__card--surface .ampy-calc__field-label { color: var(--on-surface-text); }
+.ampy-calc__lead-form-success,
+.ampy-calc__lead-form-error {
+  display: none; align-items: flex-start; gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg); border-radius: var(--radius-md);
+  font-size: var(--fs-sm); line-height: 1.5; color: var(--on-surface-text);
+}
+.ampy-calc__lead-form-success.is-visible,
+.ampy-calc__lead-form-error.is-visible { display: flex; }
+.ampy-calc__lead-form-success { background: rgba(57, 194, 129, 0.14); border: 1px solid rgba(57, 194, 129, 0.4); }
+.ampy-calc__lead-form-error   { background: rgba(214, 76, 76, 0.14);  border: 1px solid rgba(214, 76, 76, 0.4); }
+.ampy-calc__lead-form-success svg { color: var(--state-success); flex-shrink: 0; }
+.ampy-calc__lead-form-error svg   { color: var(--state-error);   flex-shrink: 0; }
+.ampy-calc__email-row { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
+.ampy-calc__email-row .ampy-calc__input { flex: 1; min-width: 0; }
+
+/* ── GDPR: honeypot ─────────────────────────────────────────────────────────
+   Off-screen, zero-size, non-interactive. Not display:none (some bots skip
+   hidden fields); this keeps it in the DOM/tab-out-of-reach but invisible to
+   humans. aria-hidden on the wrapper keeps it off the a11y tree. */
+.ampy-calc__hp {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── GDPR: consent checkbox ─────────────────────────────────────────────────── */
+.ampy-calc__consent { gap: var(--spacing-xs); }
+.ampy-calc__consent-row {
+  display: flex; align-items: flex-start; gap: var(--spacing-sm);
+  cursor: pointer;
+}
+.ampy-calc__consent-check {
+  flex-shrink: 0; width: 2rem; height: 2rem; margin: 0;
+  accent-color: var(--action-primary); cursor: pointer;
+}
+.ampy-calc__consent-text {
+  font-size: var(--fs-xs); line-height: 1.5; color: var(--on-surface-text);
+}
+.ampy-calc__card--surface .ampy-calc__consent-text { color: var(--on-surface-text-muted); }
+.ampy-calc__consent-text a {
+  color: var(--text-inverse); text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.ampy-calc__card--surface .ampy-calc__consent-text a { color: var(--text-inverse); }
+.ampy-calc__consent-check.ampy-calc__input--error {
+  outline: 2px solid var(--state-error); outline-offset: 2px; border-radius: 2px;
+}
+/* a11y / touch target (WCAG 2.5.5): give the checkbox a ≥44px tap zone via the
+   clickable label row without enlarging the visible box. */
+@media (pointer: coarse) {
+  .ampy-calc__consent-row { min-height: 4.4rem; align-items: center; }
+}
+
+/* ── Trust strip ────────────────────────────────────────────────────────── */
+.ampy-calc__trust-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: var(--spacing-md); padding: var(--spacing-lg);
+  background: var(--bg-subtle); border-radius: var(--radius-lg);
+}
+.ampy-calc__trust-block { display: flex; gap: var(--spacing-md); align-items: flex-start; padding: var(--spacing-sm); }
+.ampy-calc__trust-block-icon {
+  width: 4rem; height: 4rem; border-radius: var(--radius-md);
+  background: var(--bg-primary); color: var(--action-primary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ampy-calc__trust-block-text  { display: flex; flex-direction: column; gap: 0.2rem; }
+.ampy-calc__trust-block-title { font-family: var(--font-heading); font-weight: 600; color: var(--text-primary); font-size: var(--fs-sm); }
+.ampy-calc__trust-block-sub   { color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.5; }
+
+/* ── Methodology ────────────────────────────────────────────────────────── */
+.ampy-calc__methodology {
+  background: var(--bg-primary); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); padding: var(--spacing-md) var(--spacing-lg);
+}
+.ampy-calc__methodology .ampy-calc__disclosure { border-top: 0; padding-top: 0; }
+.ampy-calc__methodology .ampy-calc__disclosure-summary { padding: var(--spacing-xs) 0; }
+.ampy-calc__methodology-stack { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.ampy-calc__methodology-item  { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.ampy-calc__methodology-item h3 {
+  font-family: var(--font-heading); font-weight: 600; color: var(--text-primary);
+  font-size: var(--fs-sm); letter-spacing: 0.01em;
+}
+.ampy-calc__methodology-item p { color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.5; }
+.ampy-calc__methodology-item code {
+  align-self: flex-start; font-family: var(--font-mono);
+  background: var(--bg-subtle); padding: 0.2rem var(--spacing-xs);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-weight: 600;
+  font-size: var(--fs-xs); word-break: break-word; white-space: pre-wrap;
+}
+.ampy-calc__disclaimers {
+  margin-top: var(--spacing-md); padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-default); color: var(--text-secondary);
+  font-size: var(--fs-xs); line-height: 1.55; display: flex; flex-direction: column; gap: var(--spacing-sm);
+}
+
+/* ── Visually hidden ────────────────────────────────────────────────────── */
+.ampy-calc__sr-only {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0;
+}
+
+/* ── Tier grouping ──────────────────────────────────────────────────────── */
+.ampy-calc__tier { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.ampy-calc__tier + .ampy-calc__tier { margin-top: var(--spacing-lg); padding-top: var(--spacing-lg); border-top: 1px solid var(--border-default); }
+.ampy-calc__tier--primary { gap: var(--spacing-lg); }
+.ampy-calc__tier-label {
+  font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: calc(-1 * var(--spacing-xs));
+}
+.ampy-calc__field-label-tiny {
+  font-size: var(--fs-xs); color: var(--text-secondary); font-weight: 500;
+  letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: var(--spacing-xs);
+}
+.ampy-calc__field--prominent { gap: var(--spacing-xs); }
+.ampy-calc__value-prominent {
+  font-family: var(--font-mono); font-weight: 700; color: var(--text-primary);
+  font-size: var(--fs-xl); line-height: 1.3; letter-spacing: -0.01em;
+  display: inline-flex; align-items: baseline; gap: 0.6rem; transition: color var(--motion-fast);
+}
+.ampy-calc__value-prominent.is-snap { animation: ampy-snap-highlight var(--motion-fast) var(--easing); }
+@keyframes ampy-snap-highlight {
+  0%   { color: var(--action-primary); transform: scale(1.04); }
+  100% { color: var(--text-primary);   transform: scale(1); }
+}
+.ampy-calc__value-unit { font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 500; font-family: var(--font-body); }
+.ampy-calc__selector-button--prominent { padding: var(--spacing-md); }
+.ampy-calc__selector-img--lg { width: 5.6rem; height: 5.6rem; }
+.ampy-calc__selector-name--lg { font-family: var(--font-heading); font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
+.ampy-calc__selector-button--on-surface {
+  background: var(--on-surface-subtle-bg); border-color: var(--on-surface-border-strong); color: var(--text-inverse);
+}
+.ampy-calc__selector-button--on-surface .ampy-calc__selector-name { color: var(--text-inverse); }
+.ampy-calc__selector-button--on-surface .ampy-calc__selector-best { color: var(--on-surface-text-muted); }
+.ampy-calc__selector-button--on-surface .ampy-calc__selector-img  { background: rgba(255,255,255,0.08); color: var(--on-surface-text-muted); }
+.ampy-calc__selector-button--on-surface:hover { border-color: var(--on-surface-text-faint); }
+.ampy-calc__field--solar {
+  background: var(--bg-subtle); padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md); margin: 0;
+}
+.ampy-calc__field-hint--conditional { color: var(--state-warning); font-weight: 500; }
+
+/* ── Tooltip ────────────────────────────────────────────────────────────── */
+.ampy-calc__tip {
+  width: 1.6rem; height: 1.6rem; border-radius: var(--radius-full);
+  background: transparent; border: 1px solid var(--border-default);
+  color: var(--text-secondary); font-size: 1rem; font-weight: 700;
+  font-family: var(--font-heading);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: help; position: relative; margin-left: var(--spacing-xs);
+  transition: background var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast);
+  flex-shrink: 0;
+}
+.ampy-calc__tip:hover, .ampy-calc__tip:focus-visible {
+  background: var(--action-primary); color: var(--text-inverse); border-color: var(--action-primary); outline: none;
+}
+/* a11y / touch target (WCAG 2.5.5): on touch/coarse pointers the 1.6rem "i"
+   is far below 44px. Expand the *clickable* box to 4.4rem with transparent
+   padding while a centred ::before keeps the visible circle at 1.6rem, so the
+   layout/visual is unchanged but the tap target is ≥44px. */
+@media (pointer: coarse) {
+  .ampy-calc__tip {
+    width: 4.4rem; height: 4.4rem;
+    border-color: transparent; background: transparent;
+  }
+  .ampy-calc__tip::before {
+    content: ""; position: absolute; top: 50%; left: 50%;
+    width: 1.6rem; height: 1.6rem; transform: translate(-50%, -50%);
+    border-radius: var(--radius-full); border: 1px solid var(--border-default);
+    transition: background var(--motion-fast), border-color var(--motion-fast);
+  }
+  .ampy-calc__tip:hover::before, .ampy-calc__tip:focus-visible::before {
+    background: var(--action-primary); border-color: var(--action-primary);
+  }
+  /* keep the bubble anchored where the visible circle is */
+  .ampy-calc__tip::after { bottom: calc(50% + 1.4rem); }
+}
+.ampy-calc__tip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + var(--spacing-xs)); left: 50%;
+  transform: translateX(-50%); padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-surface); color: var(--text-inverse);
+  font-family: var(--font-body); font-weight: 400; font-size: var(--fs-xs);
+  line-height: 1.5; border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+  width: max-content; max-width: 26rem; white-space: normal; text-align: left;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--motion-fast), visibility var(--motion-fast); z-index: 50;
+}
+.ampy-calc__tip:hover::after, .ampy-calc__tip:focus-visible::after { opacity: 1; visibility: visible; }
+
+/* ── Results hierarchy ──────────────────────────────────────────────────── */
+.ampy-calc__btn-link {
+  display: inline-flex; align-items: center; gap: var(--spacing-xs);
+  color: var(--on-surface-text-muted); background: transparent; border: 0;
+  font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500;
+  padding: var(--spacing-xs) 0; cursor: pointer; transition: color var(--motion-fast);
+}
+.ampy-calc__btn-link:hover { color: var(--text-inverse); }
+.ampy-calc__btn-link:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.4); border-radius: var(--radius-sm); }
+.ampy-calc__btn-link--center { justify-content: center; align-self: center; }
+
+.ampy-calc__hero15 { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.ampy-calc__hero15-eyebrow {
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ampy-calc__hero15-value {
+  font-family: var(--font-heading); font-size: var(--fs-4xl); line-height: 1.0;
+  font-weight: 700; color: var(--text-inverse); letter-spacing: -0.03em;
+  display: inline-flex; align-items: baseline; gap: 1.2rem;
+}
+.ampy-calc__hero15-unit { font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 500; color: var(--on-surface-text-muted); letter-spacing: -0.01em; }
+.ampy-calc__hero15-sub  { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+.ampy-calc__hero15-range {
+  color: var(--on-surface-text-faint); font-size: var(--fs-xs);
+  font-family: var(--font-mono); margin-top: 0.1rem;
+}
+.ampy-calc__hero15-mini {
+  display: inline-block; margin-top: 0.2rem; color: var(--on-surface-text-faint);
+  font-size: var(--fs-xs); text-decoration: underline;
+  text-decoration-color: var(--on-surface-border-strong); text-underline-offset: 0.3em;
+  transition: color var(--motion-fast);
+}
+.ampy-calc__hero15-mini:hover { color: var(--on-surface-text-muted); text-decoration-color: currentColor; }
+
+/* Secondary stat tiles. Each tile is a self-contained vertical block so
+   individual tiles (Att betala / Payback) can be hidden by the ROI toggle
+   and the row reflows cleanly. */
+.ampy-calc__trio {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  column-gap: var(--spacing-lg); row-gap: var(--spacing-md); align-items: start;
+}
+.ampy-calc__trio-tile { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.ampy-calc__trio-label {
+  font-family: var(--font-body); font-size: var(--fs-xs); color: var(--on-surface-text-muted);
+  font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase;
+}
+.ampy-calc__trio-label sup { font-weight: 600; }
+.ampy-calc__trio-value {
+  font-family: var(--font-heading); font-size: var(--fs-lg); font-weight: 700;
+  line-height: 1.2; color: var(--text-inverse); letter-spacing: -0.015em;
+  display: inline-flex; align-items: baseline; gap: 0.6rem; white-space: nowrap;
+}
+.ampy-calc__trio-unit { font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
+.ampy-calc__trio-sub  { color: var(--on-surface-text-faint); font-size: var(--fs-xs); line-height: 1.5; }
+
+.ampy-calc__internal-divider { height: 1px; background: var(--on-surface-border); border: 0; margin: 0; }
+.ampy-calc__evidence-label {
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ampy-calc__evidence { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.ampy-calc__evidence-head { display: flex; align-items: baseline; justify-content: space-between; }
+
+.ampy-calc__streams-disclosure { border-top: 1px solid var(--on-surface-border); margin-top: var(--spacing-xs); padding-top: var(--spacing-xs); }
+.ampy-calc__streams-summary {
+  display: flex; align-items: center; gap: var(--spacing-xs); list-style: none;
+  cursor: pointer; color: var(--on-surface-text-muted); font-size: var(--fs-sm);
+  padding: var(--spacing-xs) 0; font-family: var(--font-body); font-weight: 500;
+}
+.ampy-calc__streams-summary::-webkit-details-marker { display: none; }
+.ampy-calc__streams-summary:hover { color: var(--text-inverse); }
+.ampy-calc__streams-summary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 169, 145, 0.4); border-radius: var(--radius-sm); }
+.ampy-calc__streams-summary svg { transition: transform var(--motion-fast); }
+.ampy-calc__streams-disclosure[open] .ampy-calc__streams-summary svg { transform: rotate(180deg); }
+.ampy-calc__streams-disclosure[open] .ampy-calc__streams-legend { margin-top: var(--spacing-sm); }
+
+.ampy-calc__chart-block { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.ampy-calc__chart-head  { display: flex; align-items: baseline; justify-content: space-between; }
+
+.ampy-calc__micro-trust {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: var(--spacing-md) var(--spacing-xl); color: var(--on-surface-text-muted); font-size: var(--fs-xs);
+  margin: calc(-1 * var(--spacing-xs)) 0 var(--spacing-xs) 0;
+}
+.ampy-calc__micro-trust span { display: inline-flex; align-items: center; gap: var(--spacing-xs); }
+.ampy-calc__micro-trust svg  { color: var(--state-success); flex-shrink: 0; }
+
+.ampy-calc__cta-secondary { padding-top: var(--spacing-sm); border-top: 1px solid var(--on-surface-border); }
+.ampy-calc__cta-secondary .ampy-calc__btn--outline { color: var(--text-inverse); border-color: var(--on-surface-border-strong); }
+
+.ampy-calc__spec-disclosure { margin-top: var(--spacing-sm); padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border); }
+.ampy-calc__spec-summary {
+  display: flex; align-items: center; gap: var(--spacing-xs); list-style: none;
+  cursor: pointer; color: var(--on-surface-text-muted); font-size: var(--fs-sm);
+  font-family: var(--font-body); padding: var(--spacing-xs) 0;
+}
+.ampy-calc__spec-summary::-webkit-details-marker { display: none; }
+.ampy-calc__spec-summary:hover { color: var(--text-inverse); }
+.ampy-calc__spec-summary svg { transition: transform var(--motion-fast); margin-left: auto; }
+.ampy-calc__spec-disclosure[open] .ampy-calc__spec-summary svg { transform: rotate(180deg); }
+.ampy-calc__spec-disclosure .ampy-calc__spec-table { margin-top: var(--spacing-sm); }
+.ampy-calc__spec-disclosure .ampy-calc__spec-table th,
+.ampy-calc__spec-disclosure .ampy-calc__spec-table td { font-size: var(--fs-xs); padding: var(--spacing-xs) 0; }
+
+/* ── Staggered reveal animations ────────────────────────────────────────── */
+.ampy-calc__roi-toggle-row,
+.ampy-calc__hero15,
+.ampy-calc__trio,
+.ampy-calc__evidence,
+.ampy-calc__chart-block,
+.ampy-calc__cta-stack {
+  opacity: 0; transform: translateY(0.6rem);
+  animation: ampy-reveal var(--motion-normal) var(--easing) forwards;
+}
+.ampy-calc__roi-toggle-row { animation-delay:  20ms; }
+.ampy-calc__hero15      { animation-delay:  40ms; }
+.ampy-calc__trio        { animation-delay: 120ms; }
+.ampy-calc__evidence    { animation-delay: 180ms; }
+.ampy-calc__chart-block { animation-delay: 220ms; }
+.ampy-calc__cta-stack   { animation-delay: 260ms; }
+@keyframes ampy-reveal { to { opacity: 1; transform: translateY(0); } }
+
+/* ── Reduced motion (stays as @media — this is a user preference, not a size) ── */
+@media (prefers-reduced-motion: reduce) {
+  .ampy-calc *,
+  .ampy-calc *::before,
+  .ampy-calc *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CONTAINER QUERIES
+   All breakpoints reference the .ampy-calc-outer container (name: ampy),
+   not the viewport. The calculator responds to whatever space it's given.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Container gap + email row + tooltip anchoring */
+@container ampy (max-width: 768px) {
+  .ampy-calc__container {
+    gap: var(--spacing-xl);
+  }
+  .ampy-calc__email-row              { flex-direction: column; }
+  .ampy-calc__email-row .ampy-calc__input { width: 100%; }
+  .ampy-calc__email-row .ampy-calc__btn   { width: 100%; }
+
+  /* Tooltip anchor moves to parent row so tip can never clip off-edge */
+  .ampy-calc__field,
+  .ampy-calc__trio-label,
+  .ampy-calc__hero-label,
+  .ampy-calc__streams-summary { position: relative; }
+  .ampy-calc__tip { position: static; }
+  .ampy-calc__tip::after {
+    width: 100%; max-width: 100%;
+    left: 50%; transform: translateX(-50%);
+    bottom: 100%; margin-bottom: var(--spacing-xs);
+    text-align: center;
+  }
+}
+
+/* a11y: on narrow TOUCH phones the rule above sets the tip to position:static
+   (to re-anchor the bubble). Re-establish a positioning context so the coarse
+   touch-target ::before (visible circle + ≥44px hit area) stays centred on the
+   tip. Source-ordered after the narrow block so it wins on coarse pointers. */
+@media (pointer: coarse) {
+  @container ampy (max-width: 768px) {
+    .ampy-calc__tip { position: relative; }
+    .ampy-calc__tip::after {
+      left: 50%; transform: translateX(-50%); width: max-content; max-width: 24rem;
+    }
+  }
+}
+
+
+/* Slider ticks — reduce size so labels fit on narrow phones.
+   The km slider also abbreviates "5 000"→"5k" in JS (fmtKmShort). */
+@container ampy (max-width: 500px) {
+  .ampy-calc__slider-tick {
+    font-size: 0.8rem;
+    padding: 0.1rem 0.15rem;
+  }
+}
+
+/* a11y / legibility ≤390px: even abbreviated, 8 km ticks crowd the smallest
+   phones. Collapse the km slider's interior labels to ENDPOINTS + ACTIVE only
+   so the remaining labels stay readable. The % slider (5 short ticks) is left
+   intact. data-endpoint is set on the first/last tick in renderRangeSlider. */
+@container ampy (max-width: 390px) {
+  #ampyEvKmContainer .ampy-calc__slider-tick:not([data-endpoint]):not(.ampy-calc__slider-tick--active) {
+    color: transparent;
+  }
+  /* keep the abbreviated label visible & readable for the ones we show */
+  #ampyEvKmContainer .ampy-calc__slider-tick[data-endpoint],
+  #ampyEvKmContainer .ampy-calc__slider-tick--active {
+    font-size: 0.9rem;
+  }
+}
+
+/* Main grid: two-column → single-column */
+@container ampy (max-width: 960px) {
+  .ampy-calc__main { grid-template-columns: 1fr; }
+}
+
+/* Card padding */
+@container ampy (max-width: 600px) {
+  .ampy-calc__card { padding: var(--spacing-lg); }
+}
+
+/* Streams legend: 1-col → 2-col */
+@container ampy (min-width: 600px) {
+  .ampy-calc__streams-legend {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm) var(--spacing-lg);
+  }
+}
+
+/* Lead form grid: 1-col → 2-col */
+@container ampy (min-width: 600px) {
+  .ampy-calc__lead-form-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Chart — taller on narrow containers */
+@container ampy (max-width: 560px) {
+  .ampy-calc__chart { aspect-ratio: 1.45 / 1; min-height: 34rem; }
+}
+
+/* Trio — stack vertically on narrow containers */
+@container ampy (max-width: 560px) {
+  .ampy-calc__trio { grid-template-columns: 1fr; }
+}

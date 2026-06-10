@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs / scratch
+*.log
+
+# Node (none currently, but just in case)
+node_modules/
+
+# Reference-only decode of the full multi-calculator FluentSnippets export
+# (battery + LED + EV). Not part of this EV deployment; kept locally only.
+_decoded2/
