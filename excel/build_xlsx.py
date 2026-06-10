@@ -11,8 +11,11 @@ targets resolve, and inlineStr cells are also read. xlsxwriter still emits the
 "easy" shape (relative targets + shared strings), so this file remains the
 canonical happy-path fixture.
 
-NOTE: charger price_sek is now the INSTALLED, turnkey price incl. moms
-(PLACEHOLDER values — to be replaced with real installed quotes).
+NOTE: charger pricing is now split into TWO columns:
+  price_sek       = NET installed price AFTER Grön Teknik (what the customer pays)
+  gross_price_sek = GROSS installed price incl. moms, BEFORE Grön Teknik
+plus an `offert` flag (true/false). Offert-only boxes (e.g. Zaptec Pro) carry
+blank prices and offert=true; the parser keeps them despite the empty price_sek.
 
 Row layout the parser expects per sheet:
   row 0 (Excel 1) = headers
@@ -39,12 +42,25 @@ EVMODELS = (
 )
 
 CHARGERS = (
-    ["charger_id", "name", "description", "badge", "max_power_kw", "price_sek", "learn_more_url", "active", "sort_order"],
+    ["charger_id", "name", "description", "badge", "max_power_kw", "price_sek", "gross_price_sek", "offert", "learn_more_url", "active", "sort_order"],
     [
-        ["amina-s",      "Amina S",      "Smart 11 kW · inkl. installation",     "Rekommenderas", 11, 21900, "#", "true", 1],
-        ["easee-charge", "Easee Charge", "Kompakt · inkl. installation",         "",              22, 19900, "#", "true", 2],
-        ["zaptec-go",    "Zaptec Go",    "Diskret · inkl. installation",         "",              22, 20900, "#", "true", 3],
-        ["garo-entity",  "Garo Entity",  "Svensktillverkad · inkl. installation","",              22, 22900, "#", "true", 4],
+        # charger_id            name                   description                              badge            kW  net    gross  offert   slug                                                  active  sort
+        ["zaptec-go",            "Zaptec Go",            "22 kW · inkl. installation",            "",              22,  4490,  8980, "false", "https://ampy.se/laddboxar/zaptec-go/",                "true",  1],
+        ["zaptec-go-2",          "Zaptec Go 2",          "22 kW · inkl. installation",            "",              22,  5890, 11780, "false", "https://ampy.se/laddboxar/zaptec-go-2/",              "true",  2],
+        ["easee-charge-up",      "Easee Charge Up",      "22 kW · inkl. installation",            "",              22,  4390,  8780, "false", "https://ampy.se/laddboxar/easee-charge-up/",          "true",  3],
+        ["nexblue-edge-2",       "NexBlue Edge 2",       "22 kW · inkl. installation",            "",              22,  4190,  8380, "false", "https://ampy.se/laddboxar/nexblue-edge-2/",           "true",  4],
+        ["go-e-gemini-flex-2-0", "go-e Gemini Flex 2.0", "22 kW · inkl. installation",            "",              22,  4990,  9980, "false", "https://ampy.se/laddboxar/go-e-gemini-flex-2-0/",     "true",  5],
+        ["tesla-wall-connector", "Tesla Wall Connector", "11 kW · inkl. installation",            "",              11,  4450,  8900, "false", "https://ampy.se/laddboxar/tesla-wall-connector/",     "true",  6],
+        ["charge-amps-luna",     "Charge Amps Luna",     "22 kW · inkl. installation",            "",              22,  4850,  9700, "false", "https://ampy.se/laddboxar/charge-amps-luna/",         "true",  7],
+        ["charge-amps-halo",     "Charge Amps Halo",     "22 kW · inkl. installation",            "",              22,  4990,  9980, "false", "https://ampy.se/laddboxar/charge-amps-halo/",         "true",  8],
+        ["charge-amps-dawn",     "Charge Amps Dawn",     "22 kW · inkl. installation",            "",              22,  6850, 13700, "false", "https://ampy.se/laddboxar/charge-amps-dawn/",         "true",  9],
+        ["charge-amps-aura",     "Charge Amps Aura",     "11 kW · stativ · inkl. installation",   "",              11, 14550, 29100, "false", "https://ampy.se/laddboxar/charge-amps-aura/",         "true", 10],
+        ["defa-power",           "Defa Power",           "22 kW · inkl. installation",            "",              22,  5250, 10500, "false", "https://ampy.se/laddboxar/defa-power/",               "true", 11],
+        ["amina-s",              "Amina S",              "11 kW · inkl. installation",            "Rekommenderas", 11,  4350,  8700, "false", "https://ampy.se/laddboxar/amina-s/",                  "true", 12],
+        ["garo-entity-home",     "Garo Entity Home",     "22 kW · inkl. installation",            "",              22,  5310, 10620, "false", "https://ampy.se/laddboxar/garo-entity-home/",         "true", 13],
+        ["wallbox-pulsar-max",   "Wallbox Pulsar Max",   "22 kW · inkl. installation",            "",              22,  4425,  8850, "false", "https://ampy.se/laddboxar/wallbox-pulsar-max/",       "true", 14],
+        ["zaptec-pro",           "Zaptec Pro",           "För BRF & företag · offert",            "Offert",        22,    "",    "", "true",  "https://ampy.se/laddboxar/zaptec-pro/",               "true", 15],
+        ["garo-entity-pro",      "Garo Entity Pro",      "För BRF & företag",                     "Företag/BRF",   22,  7350, 14700, "false", "https://ampy.se/laddboxar/garo-entity-pro/",          "true", 16],
     ],
 )
 
@@ -75,8 +91,8 @@ SYSTEMCOEFFICIENTS = (
 ADVANCED = (
     ["key", "default"],
     [
-        ["annual_km", 15000],
-        ["public_charging_pct", 50],
+        ["annual_km", 20000],
+        ["public_charging_pct", 100],
         ["public_charging_type", "dc"],
     ],
 )

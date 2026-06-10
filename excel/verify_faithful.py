@@ -246,8 +246,18 @@ def parse_chargers(rows):
         cid = php_trim(get(r, col, 'charger_id'))
         if not cid:
             continue
-        price = php_float(get(r, col, 'price_sek', None))
-        if not price:
+        # Mirror hardened PHP: offert boxes have NO price but must be kept when
+        # offert=true; a blank price with offert=false is a placeholder row -> skip.
+        #   $offert    = strtolower(trim((string)($r[col] ?? ''))) === 'true';
+        #   $price_raw = (string)($r[col] ?? '');  $price = (float)$price_raw;
+        #   if ( ! $price && ! $offert ) continue;
+        offert = php_trim(get(r, col, 'offert', '')).lower() == 'true'
+        price_raw = get(r, col, 'price_sek', '')
+        price_raw = '' if price_raw is None else str(price_raw)
+        gross_raw = get(r, col, 'gross_price_sek', '')
+        gross_raw = '' if gross_raw is None else str(gross_raw)
+        price = php_float(price_raw)
+        if not price and not offert:
             continue
         badge = php_trim(get(r, col, 'badge'))
         mp_raw = get(r, col, 'max_power_kw', None)
@@ -262,9 +272,13 @@ def parse_chargers(rows):
             'description': php_trim(get(r, col, 'description')),
             'badge': badge if badge else None,
             'maxPowerKw': php_float(mp_raw) if mp_raw not in (None, '') else 11.0,
-            'priceSek': int(round(price)),
+            # price_sek = NET (after Grön Teknik); gross_price_sek = gross.
+            # Offert boxes leave both null (PHP: ($raw === '') ? null : (int)round(...)).
+            'priceSek': None if price_raw == '' else int(round(price)),
+            'grossPriceSek': None if gross_raw == '' else int(round(php_float(gross_raw))),
             'slug': slug,
             'available': php_trim(get(r, col, 'active')).lower() == 'true',
+            'offertOnly': offert,
             '_sort': int(php_float(sort_raw)) if sort_raw not in (None, '') else 999,
         }
     items = [(k, chargers[k]) for k in order]
@@ -409,10 +423,22 @@ EXPECTED = {
     {"id":"annan","name":"Annan elbil","description":"Genomsnittlig förbrukning","badge":None,"available":True,"efficiencyKwhPer10km":1.7,"onboardAcKw":11},
   ],
   "CHARGERS": [
-    {"id":"amina-s","name":"Amina S","description":"Smart 11 kW · inkl. installation","badge":"Rekommenderas","maxPowerKw":11,"priceSek":21900,"slug":"#","available":True},
-    {"id":"easee-charge","name":"Easee Charge","description":"Kompakt · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":19900,"slug":"#","available":True},
-    {"id":"zaptec-go","name":"Zaptec Go","description":"Diskret · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":20900,"slug":"#","available":True},
-    {"id":"garo-entity","name":"Garo Entity","description":"Svensktillverkad · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":22900,"slug":"#","available":True},
+    {"id":"zaptec-go","name":"Zaptec Go","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4490,"grossPriceSek":8980,"slug":"https://ampy.se/laddboxar/zaptec-go/","available":True,"offertOnly":False},
+    {"id":"zaptec-go-2","name":"Zaptec Go 2","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5890,"grossPriceSek":11780,"slug":"https://ampy.se/laddboxar/zaptec-go-2/","available":True,"offertOnly":False},
+    {"id":"easee-charge-up","name":"Easee Charge Up","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4390,"grossPriceSek":8780,"slug":"https://ampy.se/laddboxar/easee-charge-up/","available":True,"offertOnly":False},
+    {"id":"nexblue-edge-2","name":"NexBlue Edge 2","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4190,"grossPriceSek":8380,"slug":"https://ampy.se/laddboxar/nexblue-edge-2/","available":True,"offertOnly":False},
+    {"id":"go-e-gemini-flex-2-0","name":"go-e Gemini Flex 2.0","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4990,"grossPriceSek":9980,"slug":"https://ampy.se/laddboxar/go-e-gemini-flex-2-0/","available":True,"offertOnly":False},
+    {"id":"tesla-wall-connector","name":"Tesla Wall Connector","description":"11 kW · inkl. installation","badge":None,"maxPowerKw":11,"priceSek":4450,"grossPriceSek":8900,"slug":"https://ampy.se/laddboxar/tesla-wall-connector/","available":True,"offertOnly":False},
+    {"id":"charge-amps-luna","name":"Charge Amps Luna","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4850,"grossPriceSek":9700,"slug":"https://ampy.se/laddboxar/charge-amps-luna/","available":True,"offertOnly":False},
+    {"id":"charge-amps-halo","name":"Charge Amps Halo","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4990,"grossPriceSek":9980,"slug":"https://ampy.se/laddboxar/charge-amps-halo/","available":True,"offertOnly":False},
+    {"id":"charge-amps-dawn","name":"Charge Amps Dawn","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":6850,"grossPriceSek":13700,"slug":"https://ampy.se/laddboxar/charge-amps-dawn/","available":True,"offertOnly":False},
+    {"id":"charge-amps-aura","name":"Charge Amps Aura","description":"11 kW · stativ · inkl. installation","badge":None,"maxPowerKw":11,"priceSek":14550,"grossPriceSek":29100,"slug":"https://ampy.se/laddboxar/charge-amps-aura/","available":True,"offertOnly":False},
+    {"id":"defa-power","name":"Defa Power","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5250,"grossPriceSek":10500,"slug":"https://ampy.se/laddboxar/defa-power/","available":True,"offertOnly":False},
+    {"id":"amina-s","name":"Amina S","description":"11 kW · inkl. installation","badge":"Rekommenderas","maxPowerKw":11,"priceSek":4350,"grossPriceSek":8700,"slug":"https://ampy.se/laddboxar/amina-s/","available":True,"offertOnly":False},
+    {"id":"garo-entity-home","name":"Garo Entity Home","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5310,"grossPriceSek":10620,"slug":"https://ampy.se/laddboxar/garo-entity-home/","available":True,"offertOnly":False},
+    {"id":"wallbox-pulsar-max","name":"Wallbox Pulsar Max","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4425,"grossPriceSek":8850,"slug":"https://ampy.se/laddboxar/wallbox-pulsar-max/","available":True,"offertOnly":False},
+    {"id":"zaptec-pro","name":"Zaptec Pro","description":"För BRF & företag · offert","badge":"Offert","maxPowerKw":22,"priceSek":None,"grossPriceSek":None,"slug":"https://ampy.se/laddboxar/zaptec-pro/","available":True,"offertOnly":True},
+    {"id":"garo-entity-pro","name":"Garo Entity Pro","description":"För BRF & företag","badge":"Företag/BRF","maxPowerKw":22,"priceSek":7350,"grossPriceSek":14700,"slug":"https://ampy.se/laddboxar/garo-entity-pro/","available":True,"offertOnly":False},
   ],
   "REGIONS": {
     "SE1":{"label":"SE1 – Norra Sverige","homeRateSekPerKwh":1.45},
@@ -421,7 +447,7 @@ EXPECTED = {
     "SE4":{"label":"SE4 – Södra Sverige","homeRateSekPerKwh":2.1},
   },
   "RATES": {"horizonYears":10,"publicAcRateSekPerKwh":4.5,"publicDcRateSekPerKwh":5.5,"chargerEfficiencyPct":0.9,"gronTeknikRate":0.485,"gronTeknikCapPerApplicant":50000,"maxApplicants":2,"uncertaintyBand":0.1},
-  "ADVANCED_DEFAULTS": {"annualKm":15000,"publicChargingPct":50,"publicChargingType":"dc"},
+  "ADVANCED_DEFAULTS": {"annualKm":20000,"publicChargingPct":100,"publicChargingType":"dc"},
   "defaultRegion": "SE3",
 }
 

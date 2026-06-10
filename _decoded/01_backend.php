@@ -800,19 +800,31 @@ function ampy_ev_calc_parse_chargers( array $rows ): array {
         $r  = $rows[$i];
         $id = trim( $r[ $col['charger_id'] ] ?? '' );
         if ( ! $id ) continue;
-        $price = (float)( $r[ $col['price_sek'] ] ?? 0 );
-        if ( ! $price ) continue;
+
+        // `offert` boxes (e.g. Zaptec Pro for BRF/företag) carry NO price — they
+        // route to a manual quote. Keep them when offert=true even though
+        // price_sek is blank; otherwise a blank price means a truly-empty/placeholder
+        // row that must be skipped (preserves the old hardening).
+        $offert    = strtolower( trim( (string) ( $r[ $col['offert'] ] ?? '' ) ) ) === 'true';
+        $price_raw = (string) ( $r[ $col['price_sek'] ]       ?? '' );
+        $gross_raw = (string) ( $r[ $col['gross_price_sek'] ] ?? '' );
+        $price     = (float) $price_raw;
+        if ( ! $price && ! $offert ) continue;
 
         $chargers[$id] = [
-            'id'          => $id,
-            'name'        => trim( $r[ $col['name'] ]        ?? '' ),
-            'description' => trim( $r[ $col['description'] ] ?? '' ),
-            'badge'       => trim( $r[ $col['badge'] ]       ?? '' ) ?: null,
-            'maxPowerKw'  => (float)( $r[ $col['max_power_kw'] ] ?? 11 ),
-            'priceSek'    => (int) round( $price ),
-            'slug'        => trim( $r[ $col['learn_more_url'] ] ?? '#' ),
-            'available'   => strtolower( $r[ $col['active'] ] ?? '' ) === 'true',
-            '_sort'       => (int)( $r[ $col['sort_order'] ] ?? 999 ),
+            'id'            => $id,
+            'name'          => trim( $r[ $col['name'] ]        ?? '' ),
+            'description'   => trim( $r[ $col['description'] ] ?? '' ),
+            'badge'         => trim( $r[ $col['badge'] ]       ?? '' ) ?: null,
+            'maxPowerKw'    => (float)( $r[ $col['max_power_kw'] ] ?? 11 ),
+            // price_sek is the NET price (after Grön Teknik); gross_price_sek is the
+            // pre-deduction gross. Offert boxes leave both null (no price quoted).
+            'priceSek'      => ( $price_raw === '' ) ? null : (int) round( $price ),
+            'grossPriceSek' => ( $gross_raw === '' ) ? null : (int) round( (float) $gross_raw ),
+            'slug'          => trim( $r[ $col['learn_more_url'] ] ?? '#' ),
+            'available'     => strtolower( $r[ $col['active'] ] ?? '' ) === 'true',
+            'offertOnly'    => $offert,
+            '_sort'         => (int)( $r[ $col['sort_order'] ] ?? 999 ),
         ];
     }
     uasort( $chargers, fn( $a, $b ) => $a['_sort'] <=> $b['_sort'] );
@@ -1043,7 +1055,7 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <span class="ampy-calc__field-label-tiny">
               <span id="ampyEvPctLabel">Andel offentlig laddning</span>
               <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                      data-tip="Hur stor andel av din laddning sker på offentliga stationer idag? Elbilsägare utan hemmaladdare laddar typiskt 60–80% offentligt.">i</button>
+                      data-tip="Andelen av din laddning som sker publikt idag – och som du kan flytta hem med en egen laddbox. 100 % betyder att all din nuvarande publika laddning flyttas hem. Elbilsägare utan hemmaladdare laddar typiskt 60–80 % publikt.">i</button>
             </span>
             <span class="ampy-calc__value-prominent ampy-calc__t-mono" id="ampyEvPctDisplay">
               <span id="ampyEvPctValue">—</span><span class="ampy-calc__value-unit">%</span>
@@ -1105,33 +1117,30 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
       <div class="ampy-calc__result-stack">
 
         <!-- a11y: aria-live removed from the whole results card. The entire
-             subtree (chart redraws, every tile, breakdown HTML) was being
+             subtree (every tile, the monthly panel, breakdown HTML) was being
              announced on every keystroke, which flooded SR users. Replaced by
              a single polite, debounced status region (#ampyEvSrStatus) that
              announces ONLY the annual-saving headline after input settles. -->
         <div class="ampy-calc__card ampy-calc__card--surface" aria-label="Resultat">
 
-          <!-- ROI toggle: count the charger cost or not -->
-          <div class="ampy-calc__roi-toggle-row">
-            <span class="ampy-calc__roi-toggle-text">
-              <!-- a11y: only the text node carries the id used as the switch's
+          <!-- ROI control: count the charger cost or not.
+               Best-practice two-pill segmented control (reuses .ampy-calc__toggle,
+               on-surface variant). Shows BOTH states at once; the active pill is
+               highlighted. No bordered settings box. -->
+          <div class="ampy-calc__roi-control">
+            <span class="ampy-calc__roi-control-label">
+              <!-- a11y: only the text node carries the id used as the group's
                    accessible name, so the tooltip "i" button is NOT folded into
-                   the name (it would read "...Mer info" otherwise). -->
+                   the name. -->
               <span id="ampyEvInvestmentToggleLabel">Räkna med laddboxens kostnad</span>
               <button type="button" class="ampy-calc__tip" aria-label="Mer info"
                       data-tip="Med investering: vi drar av vad laddboxen kostar (efter Grön Teknik) och visar återbetalningstid. Utan investering: ren besparing på laddningen – oavsett vad laddboxen kostar.">i</button>
             </span>
-            <button type="button"
-                    class="ampy-calc__switch"
-                    role="switch"
-                    aria-checked="true"
-                    id="ampyEvInvestmentToggle"
-                    aria-labelledby="ampyEvInvestmentToggleLabel">
-              <span class="ampy-calc__switch-track" aria-hidden="true">
-                <span class="ampy-calc__switch-thumb"></span>
-              </span>
-              <span class="ampy-calc__switch-state" id="ampyEvInvestmentToggleState" aria-hidden="true">Med investering</span>
-            </button>
+            <div class="ampy-calc__toggle ampy-calc__toggle--investment"
+                 role="group" aria-labelledby="ampyEvInvestmentToggleLabel" id="ampyEvInvestmentToggle">
+              <button type="button" class="ampy-calc__toggle-option" data-value="with"    aria-pressed="true">Med investering</button>
+              <button type="button" class="ampy-calc__toggle-option" data-value="without" aria-pressed="false">Utan investering</button>
+            </div>
           </div>
 
           <!-- Hero: ANNUAL saving (dominant) -->
@@ -1169,17 +1178,39 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
               </span>
               <span class="ampy-calc__trio-sub" id="ampyEvNetPaySub">—</span>
             </div>
-
-            <div class="ampy-calc__trio-tile" id="ampyEvPaybackTile">
-              <span class="ampy-calc__trio-label">Payback-tid</span>
-              <span class="ampy-calc__trio-value ampy-calc__t-mono">
-                <span id="ampyEvPaybackValue">—</span><span class="ampy-calc__trio-unit">år</span>
-              </span>
-              <span class="ampy-calc__trio-sub">till break-even</span>
-            </div>
           </div>
 
           <hr class="ampy-calc__internal-divider">
+
+          <!-- Monthly cost comparison: publik vs hemma (replaces the payback chart).
+               monthlyPublic / monthlyHome = publicKwh × rate ÷ 12; saving = the
+               difference. Reconciles to the annual hero (× 12). Renders for
+               offert-only boxes too (segment-agnostic). -->
+          <div class="ampy-calc__monthly" id="ampyEvMonthly">
+            <div class="ampy-calc__monthly-head">
+              <span class="ampy-calc__evidence-label">Din månadskostnad – publikt vs hemma</span>
+            </div>
+            <div class="ampy-calc__monthly-cols">
+              <div class="ampy-calc__monthly-col">
+                <span class="ampy-calc__monthly-col-label">Publik laddning idag</span>
+                <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--public ampy-calc__t-mono">
+                  ≈ <span id="ampyEvMonthlyPublic">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
+                </span>
+              </div>
+              <div class="ampy-calc__monthly-col">
+                <span class="ampy-calc__monthly-col-label">Hemma efter installation</span>
+                <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--home ampy-calc__t-mono">
+                  ≈ <span id="ampyEvMonthlyHome">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
+                </span>
+              </div>
+            </div>
+            <div class="ampy-calc__monthly-delta" id="ampyEvMonthlyDelta">
+              <span class="ampy-calc__monthly-delta-label">Du sparar</span>
+              <span class="ampy-calc__monthly-delta-value ampy-calc__t-mono">
+                ≈ <span id="ampyEvMonthlySaving">—</span><span class="ampy-calc__monthly-delta-unit">kr/mån</span>
+              </span>
+            </div>
+          </div>
 
           <!-- Savings breakdown -->
           <div class="ampy-calc__evidence">
@@ -1187,37 +1218,6 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
               <span class="ampy-calc__evidence-label">Hur besparingen räknas</span>
             </div>
             <div id="ampyEvSavingsBreakdown" style="margin-top:var(--spacing-sm);"></div>
-          </div>
-
-          <!-- Payback chart -->
-          <div class="ampy-calc__chart-block">
-            <div class="ampy-calc__chart-head">
-              <span class="ampy-calc__evidence-label">Payback-kurva</span>
-            </div>
-            <div class="ampy-calc__chart" id="ampyEvChart">
-              <div class="ampy-calc__chart-inner">
-                <div class="ampy-calc__chart-top">
-                  <span class="ampy-calc__chart-corner ampy-calc__chart-corner--end-value ampy-calc__t-mono"
-                        id="ampyEvChartEndValue" aria-hidden="true">—</span>
-                </div>
-                <div class="ampy-calc__chart-plot">
-                  <svg viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true" id="ampyEvChartSvg"></svg>
-                </div>
-                <div class="ampy-calc__chart-axis">
-                  <span class="ampy-calc__chart-corner ampy-calc__chart-corner--today" id="ampyEvChartToday" aria-hidden="true">I dag</span>
-                  <span class="ampy-calc__chart-corner ampy-calc__chart-corner--end-axis" aria-hidden="true">10 år</span>
-                </div>
-                <div class="ampy-calc__be-marker" id="ampyEvBeMarker" aria-hidden="true">
-                  <span class="ampy-calc__be-dot"></span>
-                  <span class="ampy-calc__be-line"></span>
-                  <div class="ampy-calc__be-label">
-                    <span class="ampy-calc__be-caption">Återbetald</span>
-                    <span class="ampy-calc__be-time" id="ampyEvBeTime">—</span>
-                  </div>
-                </div>
-              </div>
-              <div class="ampy-calc__chart-empty" id="ampyEvChartEmpty" style="display:none;"></div>
-            </div>
           </div>
 
           <hr class="ampy-calc__internal-divider">
@@ -1228,12 +1228,21 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <button type="button"
                     class="ampy-calc__btn ampy-calc__btn--primary ampy-calc__btn--lg ampy-calc__btn--block"
                     id="ampyEvCtaQuote">
-              Få en offert <?= ampy_ev_arrow_icon() ?>
+              Få en exakt offert <?= ampy_ev_arrow_icon() ?>
             </button>
+
+            <!-- P1-2 micro-trust: risk-reversal at the decision point, directly
+                 under the primary CTA. Reuses the .ampy-calc__micro-trust styles.
+                 Decorative check icons are aria-hidden; the text reads cleanly. -->
+            <p class="ampy-calc__micro-trust">
+              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Svar inom 24 h</span>
+              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Inget köpkrav</span>
+              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Dina uppgifter skyddas</span>
+            </p>
 
             <form class="ampy-calc__lead-form" id="ampyEvLeadForm" novalidate>
               <span class="ampy-calc__t-small" style="color:var(--on-surface-text);">
-                En laddbox-expert återkommer inom 24 timmar med en exakt offert.
+                Vår laddbox-expert hör av sig med ett offertförslag, oftast inom en arbetsdag.
               </span>
               <div class="ampy-calc__lead-form-grid">
                 <div class="ampy-calc__field">
@@ -1300,20 +1309,6 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <div class="ampy-calc__lead-form-error" id="ampyEvLeadErrorBox" role="alert">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
               <span>Något gick fel. Ring oss på <a href="tel:+46102657979" style="color:inherit;text-decoration:underline;">010-265 79 79</a> så hjälper vi dig direkt.</span>
-            </div>
-
-            <div class="ampy-calc__cta-secondary">
-              <form class="ampy-calc__email-row" id="ampyEvEmailForm" novalidate>
-                <input type="email" class="ampy-calc__input" id="ampyEvEmailInput"
-                       placeholder="din@email.se" aria-label="E-post för att få kalkylen mailad">
-                <button type="submit" class="ampy-calc__btn ampy-calc__btn--outline" id="ampyEvEmailSubmit">
-                  <span id="ampyEvEmailSubmitLabel">Maila kalkylen</span>
-                </button>
-              </form>
-              <div class="ampy-calc__lead-form-success" id="ampyEvEmailSuccess" role="status">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                <span id="ampyEvEmailSuccessText">Kalkylen är skickad.</span>
-              </div>
             </div>
 
             <a class="ampy-calc__btn-link ampy-calc__btn-link--center" id="ampyEvProductLink" href="#" target="_self">

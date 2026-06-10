@@ -190,6 +190,216 @@ The backend-hardening stage's PHP was **not removed or altered**:
   `_ampy_ev_calc_delivery_failures`, `AMPY_EV_CALC_STORE_RAW_PII`, parser/metabox/save hook)
   all still grep-present. (Local `php -l` unavailable in this env.)
 
+## Iteration 5 (2026-06-10) — Round-2 Spec A (catalogue + net/gross model + offert) + Spec B (defaults)
+
+Owner-confirmed Round-2, **first slice**: the 16-box catalogue, the net/gross
+Grön-Teknik model (fixes the double-deduction blocker), the offert-only path, and
+the new 100 % / 20 000 km defaults. The remaining Round-2 items from MASTER-SPEC
+(chart→monthly swap §1D, ROI segmented-control redesign §1E, slider perf §1F,
+single-CTA + product image §1H, selector grouping/copy/micro-trust) are **not** in
+this slice and land next.
+
+| # | File | Change | Why | Port to (WP) |
+|---|------|--------|-----|--------------|
+| 1 | data.js | Replaced `CHARGERS` with the owner-confirmed 16-box `CATALOGUE_V3` (verbatim, fixed order): 14 consumer boxes + Zaptec Pro (offert-only) + Garo Entity Pro (priced företag/BRF). Each box now carries `priceSek` (NET, after Grön Teknik = "Att betala"), `grossPriceSek` (ordinarie/gross), `offertOnly`, and a real product-page `slug` (e.g. `https://ampy.se/laddboxar/amina-s/`). Header comment rewritten to document the net/gross model | Spec A catalogue + resolves the Grön-Teknik double-deduction blocker (§0/§1A of MASTER-SPEC) | 01_backend.php parser + Excel "Chargers" sheet (add `grossPriceSek`/`offertOnly` columns, real slugs) |
+| 2 | data.js | `ADVANCED_DEFAULTS` → `publicChargingPct: 100`, `annualKm: 20000` (type unchanged `dc`) | Spec B defaults | Excel "Advanced" sheet / post-meta defaults |
+| 3 | engine.js | `ADVANCED_DEFAULTS` `Object.assign` fallbacks → `100` / `20000` so a missing-data boot uses the new defaults too. Initial state + `init()` snap-to-step are no-ops (100 ∈ `PCT_STEPS`, 20000 ∈ `KM_STEPS`) | Spec B fallbacks + clean initial snap | 00_js-engine.js |
+| 4 | engine.js | `calculateFor`: **net/gross model** — `grossPrice = charger.grossPriceSek`, `netCost = charger.priceSek`, `gronTeknik = grossPrice − netCost` (NO second 48,5 % deduction). Added an `r.offert` flag (`charger.offertOnly` or null `priceSek`); for offert boxes `grossPrice`/`netCost`/`gronTeknik`/`paybackYears`/`cumulativeNet*` are `null`, but `annualSaving` + `publicKwh` + rates + the monthly-derivable figures STILL compute (independent of box price). `cumulativeNet[]` entries are null for offert boxes | Spec A net/gross + offert-only path (§1A/B, P0-1) | 00_js-engine.js (`calculateFor`) |
+| 5 | engine.js | `renderSingleResult`: when `r.offert` → "Att betala" tile shows **"Begär offert"** (sub "Pris tas fram i offert för din anläggning."), Payback → **"—"**, and the 10-yr tile falls back to pure savings (never NaN); otherwise unchanged "Att betala" = `netCost` with sub "Pris inkl. installation & moms {grossPrice} kr − Grön Teknik {gronTeknik} kr". Count-up memory for `evNetPay` is cleared on the offert path so a switch back to a priced box animates from its real value | Spec A/B offert UI (§1B, d) | 00_js-engine.js (`renderSingleResult`) |
+| 6 | engine.js | `renderPaybackChart`: offert boxes force the pure-savings series (`withInvest = state.includeInvestment && !r.offert`) so the chart never reads null `cumulativeNet` coords (no NaN, no break-even marker). (Chart is removed wholesale in the §1D slice; this guard keeps it correct meanwhile) | Prevent NaN on the still-present chart | 00_js-engine.js (`renderPaybackChart`) |
+| 7 | engine.js | "Läs mer om {name}" product link now uses the real `charger.slug` and shows for every box (graceful hide retained only if a slug is still `'#'`/empty) | Spec A real slugs (§1I, d) — slugs are now real product URLs | 00_js-engine.js (`renderSingleResult`) |
+| 8 | engine.js | `buildPayload`: added a null-preserving `rnd()` so offert-only leads carry **`null`** (not fabricated `0`) for price/payback/cumulative; added `offertOnly` to `results.ev` | Honesty: no fake zeros in the lead payload (§1B) | 00_js-engine.js (`buildPayload`) |
+
+**Verified:** `node --check` clean on `data.js` + `engine.js`. Catalogue parses to 16 boxes in
+the spec order; defaults `{annualKm:20000, publicChargingPct:100, dc}`; only Zaptec Pro is
+`offertOnly`/null-price; Garo Entity Pro is a normal priced box; every priced box has
+`grossPriceSek ≥ priceSek` and `gronTeknik = gross − net`. All 52 engine `getElementById`
+ids still resolve in `index.html` (only the runtime-created `ampyEvChartKeyframes` is
+absent from markup, as before). Math reconciles at the new defaults (Tesla Model Y / SE3 /
+100 % / 20 000 km, DC 5,50): publicKwh ≈ 3 756 kWh/år → annualSaving ≈ 13 520 kr/år for
+every box; Zaptec Go "Att betala" 4 490 kr (gross 8 980 − Grön Teknik 4 490), Amina S
+4 350 kr (gross 8 700 − 4 350); Zaptec Pro computes annualSaving + publicKwh but null for
+all price-derived fields (no NaN).
+
+## Iteration 6 (2026-06-10) — Round-2 Spec C (monthly comparison), D (ROI toggle redesign), F (single lead flow), G (copy)
+
+Owner-confirmed Round-2, **second slice**. Replaces the payback chart with a monthly
+publik-vs-hemma cost comparison, redesigns the ROI control to a clean two-pill
+segmented control, collapses the lead flow to a single "Få en exakt offert" CTA
+(removes the "Maila kalkylen" email path), and fixes the lead-form intro copy.
+
+### Removed element ids (gone from markup + engine; no dangling refs)
+
+| id | Was | Removed because |
+|---|---|---|
+| `ampyEvPaybackTile` / `ampyEvPaybackValue` | "Payback-tid" trio tile | Spec C — payback removed for this calculator |
+| `ampyEvChart` / `ampyEvChartSvg` / `ampyEvChartEmpty` / `ampyEvChartEndValue` / `ampyEvChartToday` | payback SVG chart block | Spec C — chart torn down wholesale |
+| `ampyEvBeMarker` / `ampyEvBeTime` | break-even marker | Spec C |
+| `ampyEvInvestmentToggleState` | ROI switch state caption | Spec D — redundant with segmented control |
+| `ampyEvEmailForm` / `ampyEvEmailInput` / `ampyEvEmailSubmit` / `ampyEvEmailSubmitLabel` / `ampyEvEmailSuccess` / `ampyEvEmailSuccessText` | "Maila kalkylen" email row | Spec F — single lead flow |
+
+### New element ids
+
+| id | Where | Purpose |
+|---|---|---|
+| `ampyEvMonthly` | results card | wrapper for the monthly comparison panel (bar fractions set via CSS vars) |
+| `ampyEvMonthlyPublic` | monthly panel | "Publik laddning idag" kr/mån value (count-up key `evMonthlyPublic`) |
+| `ampyEvMonthlyHome` | monthly panel | "Hemma efter installation" kr/mån value (count-up key `evMonthlyHome`) |
+| `ampyEvMonthlySaving` | monthly panel | "Du sparar" kr/mån delta value (count-up key `evMonthlySaving`) |
+| `ampyEvMonthlyDelta` | monthly panel | full-width delta row wrapper |
+
+`#ampyEvInvestmentToggle` is **reused** but its role changed from `switch` (a single
+`<button role=switch aria-checked>`) to a two-pill `role=group` segmented control with
+two `<button data-value aria-pressed>` options (`with` / `without`).
+
+### Changes
+
+| # | File | Change | Why | Port to (WP) |
+|---|------|--------|-----|--------------|
+| 1 | engine.js | `calculateFor` now computes `monthlyPublicCost = publicKwh×publicRate/12`, `monthlyHomeCost = publicKwh×homeRate/12`, `monthlySaving = monthlyPublicCost − monthlyHomeCost`, returned in the result. Segment-agnostic (computed for offert-only boxes too) | Spec C math; reconciles to annual hero (×12) | 00_js-engine.js (`calculateFor`) |
+| 2 | engine.js | **Removed `renderPaybackChart()` entirely** (function + its call + the `ampyEvChartKeyframes` style injection + all `$('ampyEvChart*')` / `ampyEvBe*` / `is-no-payback`/`is-savings-only`/`is-no-be`/`is-be-early` refs + chart empty-state strings). Added `renderMonthlyComparison(r)` in its place: sets the three count-up numbers + `--monthly-public-frac`/`--monthly-home-frac` bar fractions (∝ cost). Empty/offert states handled (clears numbers + bars, never NaN) | Spec C teardown + replacement | 00_js-engine.js |
+| 3 | engine.js | `renderSingleResult`: dropped the `ampyEvPaybackTile`/`ampyEvPaybackValue` handling, swapped the `renderPaybackChart(r)` call for `renderMonthlyComparison(r)`, cleaned the unavailable branch (no chart refs; resets the three monthly ids) | Spec C wiring | 00_js-engine.js |
+| 4 | engine.js | `updateInvestmentToggle()` rewritten: sets `aria-pressed` on both pills from `state.includeInvestment` (`with` pressed when investment counted) instead of `aria-checked` + caption text | Spec D segmented-control a11y | 00_js-engine.js |
+| 5 | engine.js | ROI `bindUI` listener: replaced the single switch-toggle click with `wireToggle("ampyEvInvestmentToggle", v => state.includeInvestment = (v === "with"))` (reuses the existing toggle helper) | Spec D behaviour via the standard helper | 00_js-engine.js |
+| 6 | engine.js | **Removed `submitEmailForm()`** + its `#ampyEvEmailForm` submit listener in `bindUI`; cleaned the stale "email-only path" comment in `buildPayload` | Spec F single lead flow | 00_js-engine.js |
+| 7 | index.html | Replaced the `.ampy-calc__roi-toggle-row` + `.ampy-calc__switch` markup with `.ampy-calc__roi-control` (label) + the two-pill `.ampy-calc__toggle.ampy-calc__toggle--investment` (`role=group`, `aria-labelledby`, two `aria-pressed` buttons). Kept `#ampyEvInvestmentToggleLabel` + tooltip; removed the caption span | Spec D | 01_backend.php |
+| 8 | index.html | Removed the `#ampyEvPaybackTile` trio tile and the entire `.ampy-calc__chart-block`; inserted the `.ampy-calc__monthly` panel (heading "Din månadskostnad – publikt vs hemma", two cols + delta row) directly under the trio, above "Hur besparingen räknas" | Spec C | 01_backend.php |
+| 9 | index.html | CTA label "Få en offert" → **"Få en exakt offert"**; lead-form intro → exactly "Vår laddbox-expert hör av sig med ett offertförslag, oftast inom en arbetsdag."; removed the `.ampy-calc__cta-secondary` email block; "Läs mer om {box}" link kept as the smaller link below the CTA | Spec F + G | 01_backend.php |
+| 10 | styles.css | Removed all `.ampy-calc__chart*` / `.ampy-calc__be-*` / `.ampy-calc__chart-block` / `.ampy-calc__chart-head` rules + the `@container` chart rule; removed `.ampy-calc__switch*` / `.ampy-calc__roi-toggle-row`; removed `.ampy-calc__email-row` / `.ampy-calc__cta-secondary` + the `@container` email-row rule. Added `.ampy-calc__monthly*` (panel, two cost-proportional bars via `::before`/`::after` + `--bar-frac`, delta row), `.ampy-calc__roi-control` + the on-surface `.ampy-calc__toggle--investment` variant (inactive text `--on-surface-text-muted`, active `--action-primary`/white on the dark surface). Fixed the staggered-reveal list (`__chart-block`→`__monthly`, `__roi-toggle-row`→`__roi-control`) | Spec C/D/F styling + teardown | 02_styles.css |
+
+**Verified (in-browser @ localhost:5178 + node):** `node --check` clean on `engine.js` + `data.js`;
+0 console errors/warnings across ROI-toggle (both directions), offert-box switch, slider, and
+CTA-open interactions. All engine `getElementById` ids resolve in `index.html`. Monthly panel
+at default (Tesla Model Y / SE3 / 100 % / 20 000 km / DC 5,50): Publik ≈ 1 721, Hemma ≈ 595,
+Du sparar ≈ 1 127 kr/mån; `(public − home) × 12 = 13 520 kr/år` = the annual hero **exactly**,
+reconciles at every tested slider position (SE1/50 %/15 000/AC, SE4/75 %/30 000/DC, SE3/25 %/5 000/DC,
+SE2/100 %/50 000/AC). ROI "Utan investering" hides "Att betala" + flips the 10-yr label, monthly
+stays visible. Offert-only Zaptec Pro: monthly + annual still render (1 721/595/1 127, 13 520),
+"Att betala" → "Begär offert", no NaN. CTA = "Få en exakt offert"; lead intro matches the exact
+spec string; no `#ampyEvEmailForm`/`.ampy-calc__cta-secondary` in the DOM; "Läs mer om Zaptec Go"
+links to the real slug.
+
+**Note:** the "Sparar på 10 år" cumulative tile + its `cumulativeNet`/`cumulativeSavings` series
+were left in place (MASTER-SPEC P1-4 / Q-D is an open owner decision, out of scope for this stage).
+
+## Iteration 7 (2026-06-10) — Round-2 Spec E (slider perf) + finesse (P1-1, P1-2, touch/scroll polish)
+
+Implements the laggy-slider fix (MASTER-SPEC §E) and the in-scope conversion/polish
+finesse (P1-1 honest 100 %-default framing, P1-2 micro-trust row) plus a11y/touch
+hardening for the redesigned ROI toggle and the 16-box catalogue picker. Preserves
+stages 1–2. Did **not** touch the open owner decisions (P0 data model / Grön-Teknik
+double-deduction, P1-3 Postnummer, P1-4 10-yr tile retire, Spec A/B catalogue
+grouping + offert ROI-disable) — those belong to their own specs.
+
+### Changes
+
+| # | File | Change | Why | Port to (WP) |
+|---|------|--------|-----|--------------|
+| 1 | engine.js | **Slider perf (Spec E).** Rewrote the drag path in `renderRangeSlider`: `.is-dragging` is added on `pointerdown` and removed on `pointerup`/`pointercancel`; `pointermove` only **stores `lastClientX`** and a single `requestAnimationFrame` (`paintDrag`) coalesces the paint (≤1×/frame). During drag the thumb tracks the **raw pointer via a composited `translateX`** off its nearest-step `left` anchor (the sub-step residual), and the fill tracks it via **`scaleX`** (no per-frame width reflow). On release `updateVisual(current)` snaps home with transitions restored. Replaced the old `pickByX` (which wrote `left`/`width` every move while a 300 ms transition was live → trailing). `setPointerCapture` wrapped in try/catch. | Spec E — thumb trailed the pointer because every drag pixel restarted a 300 ms `left`/`width` transition + forced layout | 00_js-engine.js (`renderRangeSlider`) |
+| 2 | engine.js | `updateVisual` now expresses the snapped fill via `scaleX` on a full-travel base width (same mechanism as the drag path, so release never flashes between a width- and a transform-based fill) and clears the inline drag transforms. | Spec E — unify snap + drag paint; glitch-free release | 00_js-engine.js |
+| 3 | styles.css | `.ampy-calc__slider-fill`: `transition: width …` → `transition: transform …` + `transform-origin: left center` (fill length is now `scaleX`, animates on the compositor). `.ampy-calc__slider-thumb` transform transition gets the shared easing. Added `.ampy-calc__slider.is-dragging .slider-fill, .is-dragging .slider-thumb { transition: none; }` (the load-bearing transition-kill) + `.is-dragging .slider-thumb { cursor: grabbing; }`. | Spec E styling | 02_styles.css |
+| 4 | styles.css | Touch target (WCAG 2.5.5): `.ampy-calc__toggle-option` coarse-pointer `min-height` **4rem → 4.4rem** (≥44px) — covers the redesigned ROI "Med/Utan investering" pills and the AC/DC toggle. | The redesigned toggle pills were 40px on touch, under 44px | 02_styles.css |
+| 5 | engine.js | **P1-1 honest 100 %-framing.** Hero sub (`#ampyEvHeroAnnualSub`) is now %-aware: ≥100 % → "om du flyttar all din publika laddning hem"; 1–99 % → "om du flyttar {pct} % av din publika laddning hem"; 0 % → "Höj andelen offentlig laddning för att se din besparing." (was the static "jämfört med fortsatt publik laddning"). Segment-agnostic (renders for offert-only boxes too). Framing only — no math change. | P1-1 — keep the (maximised) 100 %-default headline honest | 00_js-engine.js (`renderSingleResult`) |
+| 6 | index.html | **P1-2 micro-trust row** added directly under `#ampyEvCtaQuote`, reusing the already-styled-but-unused `.ampy-calc__micro-trust`: three spans w/ a success-check SVG (aria-hidden) — "Svar inom 24 h" · "Inget köpkrav" · "Dina uppgifter skyddas". | P1-2 — risk-reversal at the decision point | 01_backend.php |
+| 7 | index.html | Andel-tooltip reworded to frame the slider as "andelen … som du kan flytta hem … 100 % betyder att all din nuvarande publika laddning flyttas hem" (kept the 60–80 % typical-share note). | P1-1 companion — tooltip matches the honest 100 % model | 01_backend.php |
+| 8 | styles.css | `.ampy-calc__selector-list` `max-height: 50rem` → `min(50rem, 60vh)` + `overscroll-behavior: contain` + `-webkit-overflow-scrolling: touch`. | Catalogue picker scroll for the 16-box list — never run off a short viewport; no page chain-scroll on touch flick | 02_styles.css |
+
+**Verified (in-browser @ localhost:5178 + node):** `node --check` clean on `engine.js` + `data.js`;
+0 console errors/warnings on load and across region / AC-DC / km / pct / applicant / ROI-toggle /
+offert-box / CTA-open interactions. All 49 engine `getElementById` ids (static + the dynamic
+selector ids) resolve in `index.html`.
+**Spec E:** at rest the fill transition is `transform 0.3s` with `transform-origin` left; `.is-dragging`
+drives both fill + thumb transition-duration to `0s` (confirmed via computed style); fill `scaleX`
+tracks exact step fractions on tick/keyboard (0, 0.571, 0.714, 1 …) and recalcs; thumb resets to
+`translate(-50%,-50%)` + snapped `left` on release; drag lifecycle adds/removes `.is-dragging` on
+down/up. Smooth with no trailing on desktop; on mobile (375px) the 100 % thumb stays within the
+track (right 351 = slider right 351), no horizontal overflow, km ticks collapse to endpoints.
+**a11y/toggle:** investment toggle `role=group` + `aria-labelledby`, two native `<button aria-pressed>`,
+flips with/without correctly + hides "Att betala" + flips the 10-yr label; AC/DC same pattern. AA
+contrast on the dark surface — monthly labels 8.45:1, public value 9.85, home 8.33, delta 8.33–16.7,
+hero sub/eyebrow 8.45, micro-trust 8.45, active-pill white-on-teal 5.07 — all pass AA.
+**Reconciliation intact:** `(monthlyPublic − monthlyHome) × 12 = annual` to ≤12 kr (rounding) across
+default 100 %/20k/DC/SE3, SE1, SE1/AC, SE1/AC/50k, SE1/AC/50k/75 %.
+**P1-1:** hero sub reads "…all din publika laddning hem" at 100 %, "…50 % av…" at 50 %, the empty-state
+copy at 0 %. **Offert-only (Zaptec Pro):** monthly + annual still render, no NaN, "Att betala" →
+"Begär offert", same honest hero framing, restores cleanly.
+
+## Port to WordPress (2026-06-10, round 2) — prototype → deployed snippets (iters 5–7 folded in)
+
+Second release-engineering pass. The earlier port (above) only carried iterations 1–4.
+This pass re-syncs all three deployed FluentSnippets sources under `../_decoded/` with the
+current prototype, folding in the Round-2 work: the 16-box catalogue + net/gross
+Grön-Teknik model + offert path (iter 5), the chart→monthly-comparison swap + ROI
+toggle redesign + single-CTA lead flow + copy (iter 6), and the slider-perf rewrite +
+P1-1/P1-2 finesse (iter 7). No prototype logic was changed during the port.
+
+| Target snippet | Action | Result |
+|---|---|---|
+| `../_decoded/00_js-engine.js` | Replaced verbatim with `prototype/engine.js` | byte-identical to prototype (`diff` clean) |
+| `../_decoded/02_styles.css` | Replaced verbatim with `prototype/styles.css` | byte-identical to prototype (`diff` clean) |
+| `../_decoded/01_backend.php` | Updated **only** the markup inside `ampy_render_ev_lead_magnet()` to match `prototype/index.html` | see markup notes below |
+
+### Markup re-ported into `ampy_render_ev_lead_magnet()` (delta vs the iter 1–4 port)
+
+- **ROI control redesigned (iter 6 / Spec D):** the old `.ampy-calc__roi-toggle-row` +
+  `role=switch` `.ampy-calc__switch` (track/thumb/state) was replaced with
+  `.ampy-calc__roi-control` (label) + a two-pill `.ampy-calc__toggle.ampy-calc__toggle--investment`
+  (`role=group`, `aria-labelledby="ampyEvInvestmentToggleLabel"`, two
+  `<button data-value="with"/"without" aria-pressed>` options). `#ampyEvInvestmentToggle`
+  id reused; `#ampyEvInvestmentToggleState` removed.
+- **Chart → monthly comparison (iter 6 / Spec C):** the entire `.ampy-calc__chart-block`
+  (`#ampyEvChart*`, `#ampyEvBeMarker`/`#ampyEvBeTime`, inline SVG) and the
+  `#ampyEvPaybackTile`/`#ampyEvPaybackValue` trio tile were removed. Inserted the
+  `.ampy-calc__monthly` panel (`#ampyEvMonthly`, heading "Din månadskostnad – publikt vs
+  hemma", `#ampyEvMonthlyPublic` / `#ampyEvMonthlyHome` cols + `#ampyEvMonthlyDelta` /
+  `#ampyEvMonthlySaving` row) directly under the trio, above "Hur besparingen räknas".
+- **Single lead flow (iter 6 / Spec F):** CTA label "Få en offert" → **"Få en exakt offert"**;
+  the `.ampy-calc__cta-secondary` "Maila kalkylen" email block (`#ampyEvEmailForm`/
+  `#ampyEvEmailInput`/`#ampyEvEmailSubmit`/`#ampyEvEmailSuccess` …) was removed; the
+  smaller "Läs mer om {box}" link (`#ampyEvProductLink`) is kept below the CTA.
+- **Lead-form copy (iter 6 / Spec G):** intro → exactly "Vår laddbox-expert hör av sig med
+  ett offertförslag, oftast inom en arbetsdag."
+- **Micro-trust row (iter 7 / P1-2):** added `.ampy-calc__micro-trust` (three
+  aria-hidden check SVGs — "Svar inom 24 h" · "Inget köpkrav" · "Dina uppgifter skyddas")
+  directly under `#ampyEvCtaQuote`.
+- **Andel-tooltip (iter 7 / P1-1):** reworded to the honest 100 %-default framing
+  ("andelen … som du kan flytta hem … 100 % betyder att all din nuvarande publika
+  laddning flyttas hem").
+- Helper substitution unchanged: both selector chevrons → `ampy_ev_chevron()`, the
+  CTA arrow → `ampy_ev_arrow_icon()`; car/charger icons stay JS-rendered; the remaining
+  literal SVGs (CTA/lead/error/product-link, success check, micro-trust checks) have no
+  PHP helper and stay literal, exactly as in the prototype. All ids kept identical.
+
+### Preserved — backend-stage PHP (untouched), incl. the round-2 charger-parser changes
+
+The backend-hardening PHP was **not removed or altered**:
+- REST routes `/data/{id}` (READABLE) and `/lead/{id}` (CREATABLE, public + in-callback enforcement).
+- Lead callback: payload-size cap (413), type allow-list, honeypot accept-but-drop,
+  form-open delta sub-2s reject (`too_fast`), nonce-when-present check, per-IP transient
+  rate limit (5/10 min → 429), GDPR `consent_required` (400), durable webhook delivery
+  via blocking `wp_remote_post` + `wp_mail` fallback, delivery-failure counter/last-error
+  meta, raw-PII retention switch (`AMPY_EV_CALC_STORE_RAW_PII`) + consent metadata log.
+- **Round-2 charger parser** `ampy_ev_calc_parse_chargers()`: net `priceSek` + `grossPriceSek`
+  (null when blank) + `offertOnly` + real `slug`, with offert-keep / blank-price-skip logic — intact.
+- The rest of the Excel parser (sheet map, shared strings, EVModels/PriceAreas/
+  SystemCoefficients/Advanced), the admin metabox, and the `save_post` hook.
+- Render-fn plumbing (`$js_data`, font HTML, `data-default-car-id`/`-charger-id` echoes,
+  `AmpyEvCalcData` injection) and the `[ampy_ev_lead_magnet]` shortcode.
+
+### Verified
+
+- `diff prototype/engine.js ../_decoded/00_js-engine.js` → identical; `diff prototype/styles.css
+  ../_decoded/02_styles.css` → identical.
+- Stale markup grep clean: no `ampy-calc__switch` / `ampy-calc__chart` / `ampyEvChart` /
+  `ampyEvBe*` / `ampyEvPaybackTile` / `roi-toggle` / `ampy-calc__email-row` / `ampyEvEmail` /
+  `cta-secondary` remains in `01_backend.php`. New markup present:
+  `ampy-calc__toggle--investment`, `#ampyEvMonthly*`, `micro-trust`, "Få en exakt offert".
+- PHP `<?= … ?>` tag pairs balanced; backend-stage anchors all still grep-present
+  (`register_rest_route '/lead'`, `consent_required`, `wp_remote_post`,
+  `_ampy_ev_calc_delivery_failures`, `AMPY_EV_CALC_STORE_RAW_PII`, `parse_chargers` with
+  `grossPriceSek`/`offertOnly`, metabox, `save_post` hook, `return ob_get_clean`, shortcode).
+  (Local `php -l` unavailable in this env.)
+
 ## Backlog — judgment calls for owner (not yet done)
 
 1. **Default public type = DC (5,99 kr/kWh) maximises the headline.** DC vs AC (4,50)

@@ -1,8 +1,12 @@
-/* ── PLACEHOLDER DATA ─────────────────────────────────────────────────────────
- * NOTE: CHARGERS[].priceSek are PLACEHOLDER **fully-installed, incl. moms** prices
- * (box + standard installation, 25% VAT in), BEFORE Grön Teknik. Ampy replaces
- * these with real turnkey quotes from the signed Excel before go-live.
- * EV efficiencies (efficiencyKwhPer10km) and all rates remain illustrative too.
+/* ── DATA ─────────────────────────────────────────────────────────────────────
+ * CHARGERS — owner-confirmed 16-box catalogue (CATALOGUE_V3), fixed order:
+ *   - priceSek      = NET installed price, incl. moms, AFTER Grön Teknik ("Att betala").
+ *   - grossPriceSek = ordinarie (gross) installed price, incl. moms, BEFORE Grön Teknik.
+ *   - gronTeknik    = grossPriceSek − priceSek (DO NOT deduct 48,5% again — see engine).
+ *   - offertOnly    = true → no fixed price (priceSek/grossPriceSek null), CTA → offert.
+ * Zaptec Pro is offert-only (null price); Garo Entity Pro has a real 7 350 kr price.
+ * EV efficiencies (efficiencyKwhPer10km) and all rates remain illustrative pending
+ * the signed Excel sign-off before go-live.
  * --------------------------------------------------------------------------- */
 window.AmpyEvCalcData = {
   "EV_MODELS": [
@@ -81,44 +85,196 @@ window.AmpyEvCalcData = {
   ],
   "CHARGERS": [
     {
-      "id": "amina-s",
-      "name": "Amina S",
-      "description": "Smart 11 kW · inkl. installation",
-      "badge": "Rekommenderas",
-      "maxPowerKw": 11,
-      "priceSek": 21900,
-      "slug": "#",
-      "available": true
-    },
-    {
-      "id": "easee-charge",
-      "name": "Easee Charge",
-      "description": "Kompakt · inkl. installation",
-      "badge": null,
-      "maxPowerKw": 22,
-      "priceSek": 19900,
-      "slug": "#",
-      "available": true
-    },
-    {
       "id": "zaptec-go",
       "name": "Zaptec Go",
-      "description": "Diskret · inkl. installation",
+      "description": "22 kW · inkl. installation",
       "badge": null,
       "maxPowerKw": 22,
-      "priceSek": 20900,
-      "slug": "#",
-      "available": true
+      "priceSek": 4490,
+      "grossPriceSek": 8980,
+      "slug": "https://ampy.se/laddboxar/zaptec-go/",
+      "available": true,
+      "offertOnly": false
     },
     {
-      "id": "garo-entity",
-      "name": "Garo Entity",
-      "description": "Svensktillverkad · inkl. installation",
+      "id": "zaptec-go-2",
+      "name": "Zaptec Go 2",
+      "description": "22 kW · inkl. installation",
       "badge": null,
       "maxPowerKw": 22,
-      "priceSek": 22900,
-      "slug": "#",
-      "available": true
+      "priceSek": 5890,
+      "grossPriceSek": 11780,
+      "slug": "https://ampy.se/laddboxar/zaptec-go-2/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "easee-charge-up",
+      "name": "Easee Charge Up",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 4390,
+      "grossPriceSek": 8780,
+      "slug": "https://ampy.se/laddboxar/easee-charge-up/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "nexblue-edge-2",
+      "name": "NexBlue Edge 2",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 4190,
+      "grossPriceSek": 8380,
+      "slug": "https://ampy.se/laddboxar/nexblue-edge-2/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "go-e-gemini-flex-2-0",
+      "name": "go-e Gemini Flex 2.0",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 4990,
+      "grossPriceSek": 9980,
+      "slug": "https://ampy.se/laddboxar/go-e-gemini-flex-2-0/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "tesla-wall-connector",
+      "name": "Tesla Wall Connector",
+      "description": "11 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 11,
+      "priceSek": 4450,
+      "grossPriceSek": 8900,
+      "slug": "https://ampy.se/laddboxar/tesla-wall-connector/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "charge-amps-luna",
+      "name": "Charge Amps Luna",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 4850,
+      "grossPriceSek": 9700,
+      "slug": "https://ampy.se/laddboxar/charge-amps-luna/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "charge-amps-halo",
+      "name": "Charge Amps Halo",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 4990,
+      "grossPriceSek": 9980,
+      "slug": "https://ampy.se/laddboxar/charge-amps-halo/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "charge-amps-dawn",
+      "name": "Charge Amps Dawn",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 6850,
+      "grossPriceSek": 13700,
+      "slug": "https://ampy.se/laddboxar/charge-amps-dawn/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "charge-amps-aura",
+      "name": "Charge Amps Aura",
+      "description": "11 kW · stativ · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 11,
+      "priceSek": 14550,
+      "grossPriceSek": 29100,
+      "slug": "https://ampy.se/laddboxar/charge-amps-aura/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "defa-power",
+      "name": "Defa Power",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 5250,
+      "grossPriceSek": 10500,
+      "slug": "https://ampy.se/laddboxar/defa-power/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "amina-s",
+      "name": "Amina S",
+      "description": "11 kW · inkl. installation",
+      "badge": "Rekommenderas",
+      "maxPowerKw": 11,
+      "priceSek": 4350,
+      "grossPriceSek": 8700,
+      "slug": "https://ampy.se/laddboxar/amina-s/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "garo-entity-home",
+      "name": "Garo Entity Home",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 5310,
+      "grossPriceSek": 10620,
+      "slug": "https://ampy.se/laddboxar/garo-entity-home/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "wallbox-pulsar-max",
+      "name": "Wallbox Pulsar Max",
+      "description": "22 kW · inkl. installation",
+      "badge": null,
+      "maxPowerKw": 22,
+      "priceSek": 4425,
+      "grossPriceSek": 8850,
+      "slug": "https://ampy.se/laddboxar/wallbox-pulsar-max/",
+      "available": true,
+      "offertOnly": false
+    },
+    {
+      "id": "zaptec-pro",
+      "name": "Zaptec Pro",
+      "description": "För BRF & företag · offert",
+      "badge": "Offert",
+      "maxPowerKw": 22,
+      "priceSek": null,
+      "grossPriceSek": null,
+      "slug": "https://ampy.se/laddboxar/zaptec-pro/",
+      "available": true,
+      "offertOnly": true
+    },
+    {
+      "id": "garo-entity-pro",
+      "name": "Garo Entity Pro",
+      "description": "För BRF & företag",
+      "badge": "Företag/BRF",
+      "maxPowerKw": 22,
+      "priceSek": 7350,
+      "grossPriceSek": 14700,
+      "slug": "https://ampy.se/laddboxar/garo-entity-pro/",
+      "available": true,
+      "offertOnly": false
     }
   ],
   "REGIONS": {
@@ -150,8 +306,8 @@ window.AmpyEvCalcData = {
     "uncertaintyBand": 0.1
   },
   "ADVANCED_DEFAULTS": {
-    "annualKm": 15000,
-    "publicChargingPct": 50,
+    "annualKm": 20000,
+    "publicChargingPct": 100,
     "publicChargingType": "dc"
   },
   "defaultRegion": "SE3",

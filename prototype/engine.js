@@ -43,8 +43,8 @@
   }, _d.RATES || {});
 
   var ADVANCED_DEFAULTS = Object.assign({
-    annualKm:           15000,
-    publicChargingPct:  50,
+    annualKm:           20000,
+    publicChargingPct:  100,
     publicChargingType: "dc"
   }, _d.ADVANCED_DEFAULTS || {});
 
@@ -227,32 +227,46 @@
     var homeRate   = (REGIONS[state.region] || {}).homeRateSekPerKwh || 1.90;
     var rateGap    = publicRate - homeRate;
 
-    /* Annual saving */
+    /* Annual saving — independent of the box price, so it is valid for
+       offert-only boxes too. */
     var annualSaving = publicKwh * rateGap;
 
-    /* Charger cost + Grön Teknik */
-    var grossPrice = charger.priceSek;
-    var gronTeknik = Math.min(
-      grossPrice * RATES.gronTeknikRate,
-      RATES.gronTeknikCapPerApplicant * state.numTaxApplicants
-    );
-    var netCost = grossPrice - gronTeknik;
+    /* Monthly cost comparison — what the public-charged kWh cost publicly vs at
+       home, per month. Segment-agnostic (valid for offert-only boxes too).
+       Reconciles to the annual hero exactly: (public − home) × 12 === annualSaving. */
+    var monthlyPublicCost = publicKwh * publicRate / 12;
+    var monthlyHomeCost   = publicKwh * homeRate   / 12;
+    var monthlySaving     = monthlyPublicCost - monthlyHomeCost;
 
-    /* Payback */
-    var paybackYears = (annualSaving > 0) ? netCost / annualSaving : null;
+    /* Charger cost + Grön Teknik.
+       The catalogue ships TWO real prices per box:
+         - charger.priceSek      = NET installed price, incl. moms, AFTER Grön Teknik
+                                    ("Att betala").
+         - charger.grossPriceSek = ordinarie/gross price, incl. moms, BEFORE Grön Teknik.
+       Grön Teknik is simply the difference (gross − net). DO NOT deduct 48,5% again.
+       Offert-only boxes carry null prices → no price-derived figures (offert flag). */
+    var offert = !!charger.offertOnly || charger.priceSek == null;
 
-    /* Cumulative — two series:
+    var grossPrice = offert ? null : charger.grossPriceSek;
+    var netCost    = offert ? null : charger.priceSek;
+    var gronTeknik = offert ? null : (grossPrice - netCost);
+
+    /* Payback — needs a net price; null for offert-only boxes. */
+    var paybackYears = (!offert && annualSaving > 0) ? netCost / annualSaving : null;
+
+    /* Cumulative — two series (only meaningful when there is a box price):
        - cumulativeNet:     annualSaving×year − netCost (with investment; loss→profit)
        - cumulativeSavings: annualSaving×year          (pure savings, all-profit) */
     var cumulativeNet     = [];
     var cumulativeSavings = [];
     for (var y = 0; y <= horizon; y++) {
-      cumulativeNet.push(annualSaving * y - netCost);
+      cumulativeNet.push(offert ? null : (annualSaving * y - netCost));
       cumulativeSavings.push(annualSaving * y);
     }
 
     return {
       unavailable:         false,
+      offert:              offert,
       evModel:             evModel,
       charger:             charger,
       annualKm:            annualKm,
@@ -263,13 +277,16 @@
       homeRate:            homeRate,
       rateGap:             rateGap,
       annualSaving:        annualSaving,
+      monthlyPublicCost:   monthlyPublicCost,
+      monthlyHomeCost:     monthlyHomeCost,
+      monthlySaving:       monthlySaving,
       grossPrice:          grossPrice,
       gronTeknik:          gronTeknik,
       netCost:             netCost,
       paybackYears:        paybackYears,
       cumulativeNet:       cumulativeNet,
       cumulativeSavings:   cumulativeSavings,
-      cumulativeNetN:      cumulativeNet[horizon],
+      cumulativeNetN:      offert ? null : cumulativeNet[horizon],
       cumulativeSavingsN:  cumulativeSavings[horizon],
       savingLow:           annualSaving * (1 - RATES.uncertaintyBand),
       savingHigh:          annualSaving * (1 + RATES.uncertaintyBand),
@@ -467,12 +484,32 @@
 
     wrap.appendChild(slider); wrap.appendChild(ticks); container.appendChild(wrap);
 
+    /* Geometry note: the thumb/fill anchor at left:1.2rem and the usable travel
+       is (100% − 2.4rem). pct (0..1) is the fraction along that travel. */
+    function pctToLeft(pct) { return "calc(1.2rem + (100% - 2.4rem) * " + pct + ")"; }
+    function pctToFill(pct) { return "calc((100% - 2.4rem) * " + pct + ")"; }
+
+    /* updateVisual = the SNAPPED/canonical paint. Used on boot, tick, keyboard
+       and on drag-release. CSS transitions on .ampy-calc__slider-fill/-thumb stay
+       live here, so these moves animate smoothly to the settled step. During a
+       drag we DON'T call this (see the rAF path below) — .is-dragging kills those
+       transitions and we track the raw pointer instead, then snap on release. */
     function updateVisual(val) {
       var idx = indexFor(val);
       var max = steps.length - 1;
       var pct = max === 0 ? 0 : idx / max;
-      thumb.style.left = "calc(1.2rem + (100% - 2.4rem) * " + pct + ")";
-      fill.style.width = "calc((100% - 2.4rem) * " + pct + ")";
+      /* Snapped paint.
+         FILL: width pinned at full travel; position via scaleX (transform-origin
+         :left in styles.css) — the SAME mechanism the drag path uses, so release
+         never flashes between a width-based and a transform-based fill.
+         THUMB: positioned via `left` (slider-relative %, which translateX can't
+         express) and re-centered with the resting translate(-50%,-50%); the drag
+         transform is cleared. With .is-dragging removed, the `left`/`transform`
+         transitions animate both home to the settled step. */
+      fill.style.width      = pctToFill(1);
+      fill.style.transform  = "translateY(-50%) scaleX(" + pct + ")";
+      thumb.style.transform = "translate(-50%, -50%)";
+      thumb.style.left      = pctToLeft(pct);
       slider.setAttribute("aria-valuenow",  String(val));
       slider.setAttribute("aria-valuetext", opts.formatter(val) + (opts.unit ? " " + opts.unit : ""));
       Array.from(ticks.children).forEach(function (tickEl, i) {
@@ -500,20 +537,105 @@
       setVal(steps[target]);
     });
 
-    var dragging = false;
-    function pickByX(clientX) {
-      var r   = slider.getBoundingClientRect();
-      var w   = r.width - 24;
-      var x   = Math.max(0, Math.min(w, clientX - r.left - 12));
-      var pct = w === 0 ? 0 : x / w;
-      var idx = Math.round(pct * (steps.length - 1));
-      var s   = steps[idx];
-      if (s !== current) setVal(s);
+    /* ── Drag (Spec E: smooth, lag-free on desktop AND touch) ────────────────
+       Why the old version trailed: updateVisual() wrote left/width every
+       pointermove, but those properties have a 300ms CSS transition, so each
+       pixel restarted a 300ms animation → the thumb chased the pointer. Fix:
+         1. .is-dragging kills the transitions on fill + thumb (see styles.css).
+         2. pointermove only STORES the latest clientX; one rAF coalesces them
+            so we paint at most once per frame (no per-event layout thrash).
+         3. During the drag the thumb tracks the RAW pointer via transform
+            (translateX off the snapped base), and the value snaps to the nearest
+            step for the live readout/recalc. On release we remove .is-dragging
+            and call updateVisual(current) so the transition animates the thumb
+            home to its exact step. */
+    var dragging   = false;
+    var rafId      = null;
+    var lastClientX = 0;
+
+    /* Resolve the track travel in PIXELS (= rect.width − 2.4rem). 1.2rem each
+       side; root font-size is 62.5% so 1.2rem = 12px, 2.4rem = 24px. */
+    function dragGeom(clientX) {
+      var r = slider.getBoundingClientRect();
+      var travel = r.width - 24;
+      if (travel <= 0) return { travel: 0, x: 0, frac: 0 };
+      var x = Math.max(0, Math.min(travel, clientX - r.left - 12));
+      return { travel: travel, x: x, frac: x / travel };
     }
-    slider.addEventListener("pointerdown",   function (e) { dragging = true; slider.setPointerCapture(e.pointerId); pickByX(e.clientX); });
-    slider.addEventListener("pointermove",   function (e) { if (dragging) pickByX(e.clientX); });
-    slider.addEventListener("pointerup",     function ()  { dragging = false; });
-    slider.addEventListener("pointercancel", function ()  { dragging = false; });
+    function nearestStepIndex(frac) {
+      return Math.round(frac * (steps.length - 1));
+    }
+
+    /* Paint one drag frame. The thumb follows the RAW pointer, but we split its
+       position so release is a single, glitch-free transition:
+         - `left` is pinned to the NEAREST STEP (pctToLeft(snappedPct)).
+         - a composited translateX carries only the sub-step RESIDUAL (rawX −
+           snappedX), so the thumb sits exactly under the finger.
+       On pointerup we just clear that transform → the small residual animates to
+       0 over motion-fast while `left` (already at the step) doesn't move. No
+       dual-timed left+transform race, no flash.
+       The fill tracks the raw pointer via scaleX (composited, no width reflow).
+       .is-dragging has killed the fill/thumb transitions, so every frame here is
+       an instant, layout-free paint at ≤1×/frame. No updateVisual() in the loop. */
+    function paintDrag() {
+      rafId = null;
+      if (!dragging) return;
+      var g    = dragGeom(lastClientX);
+      var max  = steps.length - 1;
+      var idx  = nearestStepIndex(g.frac);
+      var snapFrac = max === 0 ? 0 : idx / max;
+      var residual = g.x - snapFrac * g.travel; /* px from the step to the finger */
+
+      thumb.style.left      = pctToLeft(snapFrac);
+      /* keep the grab-affordance scale while dragging (inline transform overrides
+         the :active rule, so we re-add the 1.08 lift here) */
+      thumb.style.transform = "translate(-50%, -50%) translateX(" + residual + "px) scale(1.08)";
+      /* Fill: full-travel base width, scaled to the RAW pointer fraction so the
+         fill edge tracks the finger continuously. transform-origin:left in CSS. */
+      fill.style.width      = pctToFill(1);
+      fill.style.transform  = "translateY(-50%) scaleX(" + g.frac + ")";
+
+      /* Snap the underlying value (live readout + recalc) to the nearest step. */
+      var s = steps[idx];
+      Array.from(ticks.children).forEach(function (tickEl, i) {
+        tickEl.classList.toggle("ampy-calc__slider-tick--active", i === idx);
+      });
+      if (s !== current) {
+        current = s;
+        slider.setAttribute("aria-valuenow",  String(s));
+        slider.setAttribute("aria-valuetext", opts.formatter(s) + (opts.unit ? " " + opts.unit : ""));
+        var dispEl = $(opts.displayId);
+        if (dispEl) dispEl.textContent = opts.formatter(s);
+        opts.onChangeFn(s);
+      }
+    }
+    function queueDragFrame() {
+      if (rafId == null) rafId = requestAnimationFrame(paintDrag);
+    }
+
+    function endDrag() {
+      if (!dragging) return;
+      dragging = false;
+      slider.classList.remove("is-dragging");
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      /* Snap home with the smooth transition restored. */
+      updateVisual(current);
+    }
+
+    slider.addEventListener("pointerdown", function (e) {
+      dragging = true;
+      slider.classList.add("is-dragging");
+      try { slider.setPointerCapture(e.pointerId); } catch (err) {}
+      lastClientX = e.clientX;
+      queueDragFrame();
+    });
+    slider.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      lastClientX = e.clientX;      /* store latest; rAF coalesces the paint */
+      queueDragFrame();
+    });
+    slider.addEventListener("pointerup",     endDrag);
+    slider.addEventListener("pointercancel", endDrag);
   }
 
   /* =====================================================================
@@ -560,14 +682,17 @@
     });
   }
 
-  /* ROI investment toggle (role=switch) — sync aria + label text */
+  /* ROI investment toggle (two-pill segmented control) — sync aria-pressed on
+     both pills from state.includeInvestment ("with" pressed when investment is
+     counted). */
   function updateInvestmentToggle() {
-    var sw = $("ampyEvInvestmentToggle");
-    if (!sw) return;
+    var group = $("ampyEvInvestmentToggle");
+    if (!group) return;
     var on = state.includeInvestment;
-    sw.setAttribute("aria-checked", on ? "true" : "false");
-    var stateEl = $("ampyEvInvestmentToggleState");
-    if (stateEl) stateEl.textContent = on ? "Med investering" : "Utan investering";
+    Array.from(group.querySelectorAll(".ampy-calc__toggle-option")).forEach(function (btn) {
+      var isWith = btn.dataset.value === "with";
+      btn.setAttribute("aria-pressed", (isWith === on) ? "true" : "false");
+    });
   }
 
   /* =====================================================================
@@ -620,11 +745,9 @@
     var r = calculateFor(state.evModelId, state.chargerId);
     var withInvest = state.includeInvestment;
 
-    /* Investment-only tiles are hidden when the toggle is OFF */
+    /* Investment-only tile ("Att betala") is hidden when the toggle is OFF */
     var netPayTile  = $("ampyEvNetPayTile");
-    var paybackTile = $("ampyEvPaybackTile");
     if (netPayTile)  netPayTile.style.display  = withInvest ? "" : "none";
-    if (paybackTile) paybackTile.style.display = withInvest ? "" : "none";
 
     if (r.unavailable) {
       $("ampyEvAnnualSaving").textContent = "—";
@@ -632,13 +755,10 @@
       $("ampyEvHeroAnnualSub").textContent = "Välj en elbil och en laddbox för att se din besparing.";
       $("ampyEvCumulativeValue").textContent = "—";
       $("ampyEvHero10Sub").textContent = "—";
-      ["ampyEvNetPay","ampyEvPaybackValue"].forEach(function(id){ $(id).textContent = "—"; });
+      $("ampyEvNetPay").textContent = "—";
       $("ampyEvNetPaySub").textContent = "—";
+      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlySaving"].forEach(function(id){ $(id).textContent = "—"; });
       $("ampyEvSavingsBreakdown").innerHTML = "";
-      $("ampyEvChartEmpty").style.display = "flex";
-      $("ampyEvChartEmpty").textContent = "Välj elbil och laddbox för att se payback-kurvan.";
-      $("ampyEvChartSvg").innerHTML = "";
-      $("ampyEvChart").classList.add("is-no-payback");
       announceHeadline("Välj en elbil och en laddbox för att se din besparing.");
       return;
     }
@@ -648,12 +768,22 @@
     /* HERO — annual saving is the dominant figure in BOTH toggle states */
     animateNumber("evAnnualSaving", r.annualSaving, fmtKr, "ampyEvAnnualSaving");
     $("ampyEvAnnualRange").textContent = "Spann " + fmtKr(r.savingLow) + "–" + fmtKr(r.savingHigh) + " kr/år";
-    $("ampyEvHeroAnnualSub").textContent = "jämfört med fortsatt publik laddning";
+    /* P1-1 honest framing: the saving assumes today's public charging moves home.
+       At 100 % say "all", otherwise name the share, so the big number stays honest
+       (the default is 100 %, which maximises the headline). pct 0 → no saving. */
+    var pubPct = Math.round((r.publicPct != null ? r.publicPct : 0) * 100);
+    var heroSub;
+    if (pubPct <= 0)        heroSub = "Höj andelen offentlig laddning för att se din besparing.";
+    else if (pubPct >= 100) heroSub = "om du flyttar all din publika laddning hem";
+    else                    heroSub = "om du flyttar " + pubPct + " % av din publika laddning hem";
+    $("ampyEvHeroAnnualSub").textContent = heroSub;
 
-    /* SECONDARY 10-year figure — series depends on the toggle */
-    var tenYear = withInvest ? r.cumulativeNetN : r.cumulativeSavingsN;
+    /* SECONDARY 10-year figure — series depends on the toggle.
+       For offert-only boxes there is no net series; fall back to pure savings so
+       the tile never shows NaN. */
+    var tenYear = (withInvest && !r.offert) ? r.cumulativeNetN : r.cumulativeSavingsN;
     animateNumber("evCumulative", tenYear, fmtKr, "ampyEvCumulativeValue");
-    if (withInvest) {
+    if (withInvest && !r.offert) {
       $("ampyEvCumulativeLabel").textContent = "Sparar på " + horizon + " år";
       $("ampyEvHero10Sub").textContent = "laddboxen betald, Grön Teknik inräknad";
     } else {
@@ -661,14 +791,21 @@
       $("ampyEvHero10Sub").textContent = "Din besparing på laddningen – oavsett vad laddboxen kostar.";
     }
 
-    /* Investment-only tiles */
-    animateNumber("evNetPay", r.netCost, fmtKr, "ampyEvNetPay");
-    $("ampyEvNetPaySub").textContent = "Pris inkl. installation & moms " + fmtKr(r.grossPrice) + " kr − Grön Teknik " + fmtKr(r.gronTeknik) + " kr";
-    $("ampyEvPaybackValue").textContent =
-      (r.paybackYears && r.paybackYears > 0 && r.paybackYears <= 30) ? fmtYears(r.paybackYears) : "—";
+    /* Investment-only tile. Offert-only boxes have no price → "Begär offert"
+       for "Att betala", and no gross/Grön-Teknik sub line. */
+    if (r.offert) {
+      /* No count-up for a non-numeric value; clear the stored prev so a later
+         switch back to a priced box animates from its real value, not a string. */
+      delete previousValues.evNetPay;
+      $("ampyEvNetPay").textContent = "Begär offert";
+      $("ampyEvNetPaySub").textContent = "Pris tas fram i offert för din anläggning.";
+    } else {
+      animateNumber("evNetPay", r.netCost, fmtKr, "ampyEvNetPay");
+      $("ampyEvNetPaySub").textContent = "Pris inkl. installation & moms " + fmtKr(r.grossPrice) + " kr − Grön Teknik " + fmtKr(r.gronTeknik) + " kr";
+    }
 
     renderSavingsBreakdown(r);
-    renderPaybackChart(r);
+    renderMonthlyComparison(r);
 
     var productLink = $("ampyEvProductLink");
     var hasRealSlug = r.charger.slug && r.charger.slug !== "#";
@@ -681,127 +818,42 @@
   }
 
   /* =====================================================================
-     RENDER: PAYBACK CHART  (adapted from battery calc — 10-year horizon)
+     RENDER: MONTHLY COST COMPARISON  (publik vs hemma, kr/mån)
+     Replaces the payback chart. Two on-brand bars whose widths are proportional
+     to the monthly cost, plus a "Du sparar ≈ X kr/mån" delta. The three numbers
+     count up. Reconciles to the annual hero (× 12). Renders for offert-only
+     boxes too (segment-agnostic — no box price needed). The "Att betala"/payback
+     framing lives elsewhere; this panel is purely the laddning cost.
      ===================================================================== */
-  function renderPaybackChart(r) {
-    var svg     = $("ampyEvChartSvg");
-    var chartEl = $("ampyEvChart");
-    var emptyEl = $("ampyEvChartEmpty");
+  function renderMonthlyComparison(r) {
+    var block = $("ampyEvMonthly");
+    if (!block) return;
 
-    if (!r || r.unavailable || !(r.annualSaving > 0)) {
-      svg.innerHTML = "";
-      chartEl.classList.add("is-no-payback");
-      chartEl.classList.remove("is-savings-only");
-      emptyEl.style.display = "flex";
-      emptyEl.textContent = "Inga besparingar med nuvarande val — prova fler km eller högre andel offentlig laddning.";
+    /* Empty / no-saving state: clear the numbers and the bars. publicKwh can be 0
+       (0 % public charging) → both costs 0, saving 0; still a valid, honest view. */
+    if (!r || r.unavailable || !isFinite(r.monthlySaving)) {
+      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlySaving"].forEach(function(id){
+        var el = $(id); if (el) el.textContent = "—";
+      });
+      block.style.setProperty("--monthly-public-frac", "0");
+      block.style.setProperty("--monthly-home-frac",   "0");
       return;
     }
-    chartEl.classList.remove("is-no-payback");
-    emptyEl.style.display = "none";
 
-    /* Toggle OFF → pure-savings series (all-profit, no loss zone, no break-even) */
-    var withInvest = state.includeInvestment;
-    var cumulative = withInvest ? r.cumulativeNet : r.cumulativeSavings;
-    chartEl.classList.toggle("is-savings-only", !withInvest);
+    var pub  = r.monthlyPublicCost;
+    var home = r.monthlyHomeCost;
 
-    var horizon  = r.horizon || 10;
-    var W = 1000, H = 400;
-    var PAD = { left: 0, right: 0, top: 8, bottom: 8 };
-    var plotW = W - PAD.left - PAD.right;
-    var plotH = H - PAD.top  - PAD.bottom;
+    /* Bar widths ∝ cost, scaled so the larger bar (public, since publicRate >
+       homeRate) fills the track. Guard the divide-by-zero at 0 % public. */
+    var maxCost   = Math.max(pub, home, 0);
+    var pubFrac   = maxCost > 0 ? pub  / maxCost : 0;
+    var homeFrac  = maxCost > 0 ? home / maxCost : 0;
+    block.style.setProperty("--monthly-public-frac", String(pubFrac));
+    block.style.setProperty("--monthly-home-frac",   String(homeFrac));
 
-    var yMin = cumulative[0];
-    var yMax = cumulative[horizon];
-
-    function xc(year)  { return PAD.left + (year / horizon) * plotW; }
-    function yc(value) { return PAD.top  + plotH - ((value - yMin) / (yMax - yMin)) * plotH; }
-    var zeroY = yc(0);
-
-    /* Break-even only exists in the with-investment view */
-    var pb = (withInvest && r.paybackYears && r.paybackYears > 0 && r.paybackYears <= horizon)
-      ? r.paybackYears : null;
-
-    var animStyle = function (delay) {
-      return prefersReducedMotion ? "" :
-        ' style="opacity:0;animation:ampy-zone-fade 300ms cubic-bezier(0.2,0,0.2,1) ' + delay + 'ms forwards;"';
-    };
-    var drawStyle = function (delay) {
-      return prefersReducedMotion ? "" :
-        ' style="stroke-dasharray:1400;stroke-dashoffset:1400;animation:ampy-draw 300ms cubic-bezier(0.2,0,0.2,1) ' + delay + 'ms forwards;"';
-    };
-
-    var svgHtml = "";
-
-    svgHtml += '<line x1="0" y1="' + zeroY + '" x2="' + W + '" y2="' + zeroY +
-               '" stroke="rgba(255,255,255,0.32)" stroke-width="1" stroke-dasharray="3,5" vector-effect="non-scaling-stroke"/>';
-
-    if (pb != null) {
-      /* with investment, payback within horizon → loss zone then profit zone */
-      var lossPts = [xc(0) + "," + zeroY];
-      for (var yr = 0; yr <= Math.floor(pb); yr++) lossPts.push(xc(yr) + "," + yc(cumulative[yr]));
-      lossPts.push(xc(pb) + "," + zeroY);
-      svgHtml += '<polygon points="' + lossPts.join(" ") + '" fill="var(--chart-zone-loss)"' + animStyle(0) + '/>';
-
-      var gainPts = [xc(pb) + "," + zeroY];
-      for (var yr2 = Math.ceil(pb); yr2 <= horizon; yr2++) gainPts.push(xc(yr2) + "," + yc(cumulative[yr2]));
-      gainPts.push(xc(horizon) + "," + zeroY);
-      svgHtml += '<polygon points="' + gainPts.join(" ") + '" fill="var(--chart-zone-profit)"' + animStyle(80) + '/>';
-    } else {
-      /* single-zone fill — profit (savings-only) or loss (never pays back) */
-      var zoneFill = withInvest ? "var(--chart-zone-loss)" : "var(--chart-zone-profit)";
-      var zonePts  = [xc(0) + "," + zeroY];
-      cumulative.forEach(function (c, yr) { zonePts.push(xc(yr) + "," + yc(c)); });
-      zonePts.push(xc(horizon) + "," + zeroY);
-      svgHtml += '<polygon points="' + zonePts.join(" ") + '" fill="' + zoneFill + '"' + animStyle(0) + '/>';
-    }
-
-    if (pb != null) {
-      var aPts = [];
-      for (var yr3 = 0; yr3 <= Math.floor(pb); yr3++) aPts.push(xc(yr3) + "," + yc(cumulative[yr3]));
-      aPts.push(xc(pb) + "," + zeroY);
-      svgHtml += '<polyline points="' + aPts.join(" ") + '" fill="none" stroke="var(--chart-line-loss)" stroke-width="2.75" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"' + drawStyle(0) + '/>';
-
-      var bPts = [xc(pb) + "," + zeroY];
-      for (var yr4 = Math.ceil(pb); yr4 <= horizon; yr4++) bPts.push(xc(yr4) + "," + yc(cumulative[yr4]));
-      svgHtml += '<polyline points="' + bPts.join(" ") + '" fill="none" stroke="var(--chart-line-profit)" stroke-width="2.75" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"' + drawStyle(60) + '/>';
-    } else {
-      var lineStroke = withInvest ? "var(--chart-line-loss)" : "var(--chart-line-profit)";
-      var allPts = cumulative.map(function (c, yr) { return xc(yr) + "," + yc(c); }).join(" ");
-      svgHtml += '<polyline points="' + allPts + '" fill="none" stroke="' + lineStroke + '" stroke-width="2.75" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"' + drawStyle(0) + '/>';
-    }
-
-    var startDotFill = (!withInvest) ? "var(--chart-line-profit)" : "var(--chart-line-loss)";
-    svgHtml += '<circle cx="' + xc(0) + '" cy="' + yc(cumulative[0]) + '" r="5" fill="' + startDotFill + '"/>';
-    var endVal     = cumulative[horizon];
-    var endDotFill = endVal >= 0 ? "var(--chart-line-profit)" : "var(--chart-line-loss)";
-    svgHtml += '<circle cx="' + xc(horizon) + '" cy="' + yc(endVal) + '" r="6" fill="' + endDotFill + '"/>';
-
-    svg.innerHTML = svgHtml;
-
-    var endValEl = $("ampyEvChartEndValue");
-    endValEl.textContent = (endVal >= 0 ? "+" : "") + fmtKr(endVal) + " kr";
-    endValEl.classList.toggle("is-loss", endVal < 0);
-
-    if (pb != null) {
-      var beFrac = pb / horizon;
-      chartEl.style.setProperty("--be-x", (beFrac * 100) + "%");
-      chartEl.style.setProperty("--be-y-frac", String(beFrac));
-      $("ampyEvBeTime").textContent = fmtYears(pb) + " år";
-      chartEl.classList.remove("is-no-be");
-      chartEl.classList.toggle("is-be-early", beFrac < 0.22);
-    } else {
-      chartEl.classList.add("is-no-be");
-      chartEl.classList.remove("is-be-early");
-    }
-
-    if (!document.getElementById("ampyEvChartKeyframes")) {
-      var style = document.createElement("style");
-      style.id  = "ampyEvChartKeyframes";
-      style.textContent =
-        "@keyframes ampy-draw { to { stroke-dashoffset: 0; } } " +
-        "@keyframes ampy-zone-fade { to { opacity: 1; } }";
-      document.head.appendChild(style);
-    }
+    animateNumber("evMonthlyPublic",  pub,             fmtKr, "ampyEvMonthlyPublic");
+    animateNumber("evMonthlyHome",    home,            fmtKr, "ampyEvMonthlyHome");
+    animateNumber("evMonthlySaving",  r.monthlySaving, fmtKr, "ampyEvMonthlySaving");
   }
 
   /* =====================================================================
@@ -891,11 +943,9 @@
     /* Public type toggle */
     wireToggle("ampyEvPublicType", function (v) { state.publicChargingType = v; });
 
-    /* ROI investment switch — native <button role=switch> is keyboard-operable */
-    $("ampyEvInvestmentToggle").addEventListener("click", function () {
-      state.includeInvestment = !state.includeInvestment;
-      renderAll();
-    });
+    /* ROI investment toggle — two-pill segmented control (native <button>s,
+       keyboard-operable). data-value "with"/"without" → includeInvestment. */
+    wireToggle("ampyEvInvestmentToggle", function (v) { state.includeInvestment = (v === "with"); });
 
     /* Applicants stepper */
     $("ampyEvApplicantsDec").addEventListener("click", function () {
@@ -924,7 +974,6 @@
     });
 
     $("ampyEvLeadForm").addEventListener("submit",  function (e) { e.preventDefault(); submitLeadForm(); });
-    $("ampyEvEmailForm").addEventListener("submit", function (e) { e.preventDefault(); submitEmailForm(); });
   }
 
   /* =====================================================================
@@ -932,24 +981,28 @@
      ===================================================================== */
   function buildPayload(type, extras) {
     var r = calculateFor(state.evModelId, state.chargerId);
+    /* Round helper that preserves null (offert-only boxes have no price/payback —
+       do NOT fabricate a 0). */
+    var rnd = function (v) { return (v == null || !isFinite(v)) ? null : Math.round(v); };
     var result = (!r || r.unavailable) ? null : {
       evModelId:    r.evModel.id,
       evModelName:  r.evModel.name,
       chargerId:    r.charger.id,
       chargerName:  r.charger.name,
-      grossPrice:   Math.round(r.grossPrice),
-      gronTeknik:   Math.round(r.gronTeknik),
-      netCost:      Math.round(r.netCost),
-      annualSaving:       Math.round(r.annualSaving),
+      offertOnly:   !!r.offert,
+      grossPrice:   rnd(r.grossPrice),
+      gronTeknik:   rnd(r.gronTeknik),
+      netCost:      rnd(r.netCost),
+      annualSaving:       rnd(r.annualSaving),
       paybackYears:       r.paybackYears,
-      cumulative10:       Math.round(r.cumulativeNetN),
-      cumulativeSavings10:Math.round(r.cumulativeSavingsN),
+      cumulative10:       rnd(r.cumulativeNetN),
+      cumulativeSavings10:rnd(r.cumulativeSavingsN),
       includeInvestment:  state.includeInvestment
     };
     /* Anti-bot signals for server-side rejection:
        - honeypot: must be empty; non-empty ⇒ bot.
        - formOpenedAt / elapsedMs: server rejects sub-2s (formOpenedAt is null
-         for the email-only path, which has no honeypot/timing gate). */
+         until the lead form is first opened). */
     var hp = $("ampyEvLeadCompany");
     var now = Date.now();
     var antibot = {
@@ -1087,31 +1140,6 @@
       })
       .catch(function () { $("ampyEvLeadErrorBox").classList.add("is-visible"); })
       .finally(function () { btn.disabled = false; label.textContent = "Skicka offertförfrågan"; });
-  }
-
-  function submitEmailForm() {
-    var input = $("ampyEvEmailInput");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value.trim())) {
-      /* a11y: mark invalid + move focus so the error is discoverable */
-      input.classList.add("ampy-calc__input--error");
-      input.setAttribute("aria-invalid", "true");
-      input.focus();
-      return;
-    }
-    input.classList.remove("ampy-calc__input--error");
-    input.removeAttribute("aria-invalid");
-    var btn   = $("ampyEvEmailSubmit"), label = $("ampyEvEmailSubmitLabel");
-    btn.disabled = true;
-    label.innerHTML = '<span class="ampy-calc__btn-spinner" aria-hidden="true"></span> Skickar…';
-    var email   = input.value.trim();
-    var payload = buildPayload("email_calculation", { contact: { email: email } });
-
-    emitEvent("email_calc_submit", { leadType: "email_calculation" });
-
-    Promise.resolve(window.AmpyEvCalculator.submitLead(payload))
-      .then(function ()  { $("ampyEvEmailSuccessText").textContent = "Kalkylen är skickad till " + email + "."; $("ampyEvEmailSuccess").classList.add("is-visible"); input.value = ""; })
-      .catch(function () { $("ampyEvEmailSuccessText").textContent = "Något gick fel — ring 010-265 79 79."; $("ampyEvEmailSuccess").classList.add("is-visible"); })
-      .finally(function () { btn.disabled = false; label.textContent = "Maila kalkylen till mig"; });
   }
 
   /* =====================================================================
