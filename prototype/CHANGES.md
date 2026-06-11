@@ -400,6 +400,240 @@ The backend-hardening PHP was **not removed or altered**:
   `grossPriceSek`/`offertOnly`, metabox, `save_post` hook, `return ob_get_clean`, shortcode).
   (Local `php -l` unavailable in this env.)
 
+## Iteration 8 (2026-06-11) — R3 STAGE 1: structure + data + scheduled bar (MASTER-SPEC v2)
+
+Implements the owner's STRUCTURE + DATA + SCHEDULED BAR stage from `MASTER-SPEC-v2.md`,
+`research/r3-copy.md`, and `research/r3-scheduled-charging.md`. Owner REMOVE/DECISIONS
+override any contrary expert "keep". **This stage is data/DOM/copy/scheduled-bar only —
+the headline `annualSaving` math is untouched** (still flat-rate; verified 13 520 kr/år
+on the SE3 Model-Y default). **Not in this stage:** the Part 3 pixel-craft pass
+(badge tiers, type staircase, bars-as-climax, tooltip popover, slider touch fixes,
+mobile sizing) and the host-page 62.5 % rem-scoping (G4).
+
+### DATA (`data.js`)
+| # | Change | Why |
+|---|---|---|
+| 1 | REGIONS: added `homeRateOptimizedSekPerKwh` per zone — **SE1 1.05 · SE2 1.15 · SE3 1.35 · SE4 1.45** (owner D1 "aggressive-but-defensible", ~23–31 % under flat; overrides the spec's milder 1.30/1.35/1.60/1.80) | Feeds the third "Hemma, schemalagd" bar. Data-contract change #1. |
+| 2 | All 16 chargers: `description` + `badge` set from CHARGERS_R3 (R3 marketing copy); prices/slugs/`offertOnly` kept | Point 10 / r3-copy §3. Data-contract change #2. Exactly **7 of 16** badged (Bästsäljare ×2, Rekommenderas, Prisvärd, Dubbel laddning, Offert, Företag/BRF). |
+| 3 | **Amina S** badge `Rekommenderas` → `null` | Owner-mandated removal (badge moved to Zaptec Go 2). |
+| 4 | **Charge Amps Aura** (D3): `"11 kW · stativ…"` → `"Två bilar samtidigt · inkl. installation"`, badge `null` → `Dubbel laddning`, `maxPowerKw` 11 → **22** | Confirmed dual-outlet 22 kW per product page; old data was a false single-outlet spec. |
+
+### ENGINE removals / simplifications (`engine.js`)
+| # | Change | Why |
+|---|---|---|
+| 5 | **ROI toggle removed entirely** — dropped `state.includeInvestment`, `updateInvestmentToggle()` + its `renderAll` call, the `wireToggle("ampyEvInvestmentToggle",…)` binding | Owner REMOVE (Point 4). Single view: net price + 10-yr net always shown. |
+| 6 | `renderSingleResult` simplified to the always-invest path: 10-yr tile always uses `cumulativeNet` for priced boxes (savings series for offert, no NaN); `ampyEvNetPayTile` always visible | Follows from #5. `calculateFor`'s `cumulativeNet` kept. |
+| 7 | **"Antal sökande" stepper removed** — deleted `renderApplicants()` + its `renderAll` call + both `±` click bindings. `state.numTaxApplicants` hard-pinned to **1**; Grön Teknik **cap logic kept** in the engine; `numTaxApplicants:1` kept in `buildPayload` inputs | Owner REMOVE (Point 3). |
+| 8 | **"Spann …" hero line removed** — deleted both `ampyEvAnnualRange` writes (active + unavailable reset). `savingLow/High` still computed (methodology + payload) | Owner REMOVE (Point 5). |
+| 9 | **Savings-breakdown explainer `… kWh × … kr/kWh = … kr/år` paragraph removed** — kept the 3 rate rows (public, home, bold "Du sparar per kWh") | Owner REMOVE (Point 7); math verified correct, the row was just confusing. |
+| 10 | **D2 single price line:** "Att betala" sub now `"Pris inkl. installation, Grön Teknik & moms"` — removed the `{gross} kr − Grön Teknik {x} kr` breakdown. `gross`/`gronTeknik` still in payload | Owner D2 / Point 6. |
+| 11 | `buildPayload` `results.ev`: dropped `includeInvestment` key | Only payload-shape change (Point 4). ⚠️ confirm n8n/backend before WP port. |
+| 12 | REGIONS engine fallback (L27–32) mirrors the 4 optimised rates | Old data never NaNs the third bar. |
+
+### ENGINE additions (`engine.js`)
+| # | Change | Why |
+|---|---|---|
+| 13 | `calculateFor`: added `homeRateOpt = (REGIONS[zone].homeRateOptimizedSekPerKwh \|\| homeRate*0.78)` and `monthlyHomeOptCost = publicKwh × homeRateOpt / 12`; both returned on `r`. **`annualSaving` (flat) untouched** | Owner D1 third-bar math. |
+| 14 | `renderMonthlyComparison`: third bar — sets `--monthly-homeopt-frac = homeOpt/maxCost` (maxCost stays public) + `animateNumber("evMonthlyHomeOpt",…)`; degrades to "—"/0 in empty/0 %/offert paths. Works in **offert state too** (verified) | Owner D1. |
+| 15 | `populateMethodology`: 5 items rewritten to benefit-led copy (Point 9 / r3-copy §2) + **new item 6 "Schemalagd laddning"** ("…när elen är som billigast…", never "på natten"; ca 20–30 % of hemmakostnad, not the full 30–60 % spread) | Point 9 + D1 honesty (MFL §10). Item-6 % widened from the spec's 10–16 % to match the owner's more aggressive optimised rates. |
+
+### DOM / COPY (`index.html`)
+| # | Change | Why |
+|---|---|---|
+| 16 | Removed: ROI control block, applicants stepper field, `ampyEvAnnualRange` span, the 3-item micro-trust `<p>` | Points 3/4/5/8a. |
+| 17 | Added the **third `.ampy-calc__monthly-col--homeopt`** ("Hemma, schemalagd") with `#ampyEvMonthlyHomeOpt` + an "i" tooltip ("…spotpriset är 30–60 % lägre på lågpristimmar…"). Tagged the existing public/home cols with `--public`/`--home` modifier classes | Owner D1. |
+| 18 | Tooltips rewritten: Andel offentlig laddning, Elprisområde, Typ av offentlig laddning | Points 1/2a + r3-copy §1. |
+| 19 | Primary CTA `Få en exakt offert →` → **`Få en laddbox-offert →`** (owner-mandated compound; overrides r3-copy's "keep exakt") | Owner CTA directive. |
+| 20 | Removed phone (`07X XXX XX XX`) + zip (`12345`) placeholders; added `inputmode="tel"` to phone | Point 8b. |
+| 21 | Methodology disclaimer + footnote rewritten ("Så här läser du kalkylen." / `* "Att betala" är ungefärligt pris … med Grön Teknik-avdraget redan avdraget…`) | Point 9 / r3-copy §2. |
+
+### CSS (`styles.css`) — only dead CSS + the new third bar
+| # | Change | Why |
+|---|---|---|
+| 22 | Monthly bars: replaced `:first-child`/`:last-child` fraction selectors with explicit `--public`/`--home`/`--homeopt` modifier classes; added the **third-bar style** (dashed lighter-green `repeating-linear-gradient`, value `--fs-md` + 0.85 opacity → subordinate to the solid home bar) | Third bar would have broken `:last-child` (home). |
+| 23 | Removed now-dead rules: `.ampy-calc__roi-control(-label)`, `.ampy-calc__toggle--investment*`, `.ampy-calc__stepper*`, `.ampy-calc__hero15-range`, `.ampy-calc__micro-trust*`, and the `roi-control` reveal-stagger entry | Components removed above. |
+
+### IDs removed / added
+- **Removed (DOM):** `ampyEvAnnualRange`, `ampyEvApplicantsLabel`, `ampyEvApplicantsDec`,
+  `ampyEvApplicantsValue`, `ampyEvApplicantsInc`, `ampyEvInvestmentToggleLabel`,
+  `ampyEvInvestmentToggle`. (No remaining `aria-labelledby`/`describedby` points at any of them.)
+- **Added (DOM):** `ampyEvMonthlyHomeOpt` (third-bar value span).
+- **Engine fns removed:** `updateInvestmentToggle`, `renderApplicants`.
+
+### Verify
+- `node --check` clean on `data.js` + `engine.js`. All **33** engine-referenced element
+  ids resolve in `index.html` (automated cross-check). No dangling `ampyEvApplicants` /
+  `ampyEvInvestmentToggle` / `roi-control` / `ampyEvAnnualRange` / `micro-trust` refs in
+  html/js/css. No console errors in browser.
+- **Math (SE3 Model-Y, 20 000 km, 100 %, DC):** headline **13 520 kr/år UNCHANGED**;
+  monthly publik **1 721** / hemma **595** / schemalagd **423**; staircase pub>home>opt
+  holds; `(publik − schemalagd) × 12` reconciles to `annualSavingOpt`; 10-yr **130 710 kr**;
+  Att betala **4 490 kr / "Pris inkl. installation, Grön Teknik & moms"**.
+- **SE4:** home 657 / schemalagd 454 (per-zone optimised rate updates). **Offert
+  (Zaptec Pro):** "Begär offert" + third bar still renders (423 kr/mån). Default selector =
+  Zaptec Go "Kompakt favorit · inkl. installation" + **Bästsäljare** badge; CTA =
+  "Få en laddbox-offert".
+
+### Port to WP (next)
+- `01_backend.php` (`ampy_render_ev_lead_magnet`): the 16 box `description`/`badge`,
+  the per-zone `homeRateOptimizedSekPerKwh`, the third monthly col + its "i", the removed
+  ROI/applicants/span/micro-trust DOM, the rewritten tooltips/disclaimer/footnote, the
+  CTA label, removed placeholders.
+- `00_js-engine.js`: items 5–15 above (REGIONS fallback, `calculateFor` opt-rate math,
+  third-bar render, removed toggle/stepper/span/explainer, D2 price line, methodology).
+- `excel/build_xlsx.py` + oracle: emit the new `homeRateOptimizedSekPerKwh` column + the
+  16 box strings; assert all 4 optimised rates and the 16 descriptions/badges.
+- ⚠️ Confirm the n8n payload no longer keys on `results.ev.includeInvestment`.
+
+## Iteration 9 (2026-06-11) — R3 STAGE 2: apply rewritten copy verbatim (r3-copy.md)
+
+Copy-only pass. Applies the verbatim rewritten Swedish microcopy from
+`research/r3-copy.md` and verifies that everything stage 1 (iter 8) set still
+matches it exactly. **No structural, math, or data changes** — the headline
+`annualSaving` and the third-bar logic are untouched.
+
+| # | File | Change | Why |
+|---|---|---|---|
+| 1 | engine.js | **pct-0 empty state warmed** — hero sub at `publicChargingPct = 0` changed from `"Höj andelen offentlig laddning för att se din besparing."` → **`"Dra upp andelen publik laddning så ser du vad du kan spara."`** | r3-copy.md §4 ("Other on-screen microcopy") — the only string still on the old wording after iter 8. |
+
+### Verified-already-matching (no edit needed — confirmed verbatim vs r3-copy.md)
+
+- **Tooltips (index.html):** Andel offentlig laddning (L106), Typ av offentlig
+  laddning (L122), Elprisområde (L139) — all three byte-match r3-copy §"KEY COPY".
+- **Methodology (engine.js `populateMethodology`):** items 1–5 render verbatim to
+  r3-copy §2 (item-1 `90 %` derived from `RATES.chargerEfficiencyPct`; item-2
+  `AC 4,50 · DC 5,50` derived from `RATES`; item-4 `48,5 % … (upp till 2 sökande)`
+  derived from `RATES`). Item 6 "Schemalagd laddning" kept at **ca 20–30 %** (NOT
+  the spec's 10–16 %) because the owner's data.js optimised rates
+  (SE1 1.05 / SE2 1.15 / SE3 1.35 / SE4 1.45) are 23–31 % below flat — verified by
+  computation; 10–16 % copy would contradict the displayed third bar. Owner data wins.
+- **Disclaimer + footnote (index.html L354–359):** "Så här läser du kalkylen." block
+  and `* "Att betala" är ungefärligt pris … med Grön Teknik-avdraget redan avdraget…`
+  match r3-copy §2 verbatim.
+- **In-result price label (engine.js L791):** `Pris inkl. installation, Grön Teknik & moms` ✓.
+- **16 box descriptions/tags (data.js):** all 16 match r3-copy §3 verbatim; exactly
+  7 of 16 badged; Amina S badge gone; Aura = "Två bilar samtidigt"/"Dubbel laddning".
+- **CTA = exactly two actions:** primary `Få en laddbox-offert →` (L257) + smaller
+  `Läs mer om {box} →` product link (L334–336). No micro-trust, no antal-sökande,
+  no ROI toggle re-introduced.
+
+### Verify
+- `node --check` clean on `engine.js` + `data.js`.
+- No stale `"Höj andelen offentlig laddning"` string remains in live code (only the
+  historical mention in this log, iter 7 row). New warmer string grep-confirmed in
+  `engine.js`.
+
+### Port to WP (next)
+- `00_js-engine.js`: the one-line pct-0 hero-sub string change.
+- The rest of this stage was verification-only (no new edits to port).
+
+## Iteration 8 (2026-06-11) — PIXEL-CRAFT + MOBILE PASS (owner points 11–15)
+
+Pixel/interaction pass against MASTER-SPEC-v2 Part 3 + `r3-audit-ui-pixel.md` +
+`r3-audit-usability-mobile.md`. Stages 1–2 (copy, removals, third bar, math)
+untouched — this is pure CSS/JS craft. `node --check` clean on `engine.js` +
+`data.js`; browser-verified desktop + mobile (320 / 375 / desktop). No console
+errors. Files: `styles.css`, `engine.js`, `index.html`.
+
+### Point 13 — tooltip redesign (the big one)
+- **Replaced the pure-CSS `::after` data-tip slab with a JS popover** (`engine.js`
+  `setupTooltips` + `.ampy-calc__popover` CSS). One reusable popover per "i",
+  built from its `data-tip`, appended to `<body>` (NOT `.ampy-calc-outer` — that
+  wrapper's `container-type:inline-size` would re-anchor a `position:fixed` child
+  and break the viewport-coordinate math). Tokens carry px fallbacks since it
+  lives outside the scoped `.ampy-calc`.
+- Triggers: **desktop** hover/keyboard-focus open, leave/blur/Escape close;
+  **touch** tap-toggle, outside-tap / Escape / scroll / re-tap close. A
+  `pointerdown` pointerType guard stops a touch-induced focus from auto-opening
+  then the tap's click closing it. **One open at a time** (closes other tips AND
+  selectors). Caret tracks the "i"; bubble clamped to a 12px viewport gutter,
+  width-capped at `min(280px, 100vw−24px)` with `box-sizing:border-box`. Prefers
+  above, flips below. `aria-expanded`/`aria-controls`/`role="tooltip"`/
+  `aria-describedby`; reduced-motion drops the entrance. **Verified:** mobile
+  popover renders 280px (not a full-width slab), near-edge region tip stays in
+  viewport, outside-tap/Escape/re-tap all close, only one open.
+- Removed the old `.ampy-calc__tip::after` bubble + the `max-width:768px`
+  full-width slab rule + the coarse-pointer `::after` override + `cursor:help`.
+
+### Point 11 — Apple-smooth slider drag
+- **`touch-action: pan-y` at rest, `none` while `.is-dragging`** (`styles.css`) +
+  `pointerdown` now calls `e.preventDefault()` on a **non-passive** listener and
+  ignores non-left buttons (`engine.js`). This is the actual iOS lag fix (kills
+  scroll-vs-drag disambiguation). **Verified:** `touch-action` flips none↔pan-y,
+  `preventDefault` honoured, `.is-dragging` toggles correctly; a synthetic drag
+  to 97 % snapped km→50 000 and recalced the hero.
+- **Robust geometry:** `dragGeom` reads the real thumb half-width
+  (`getComputedStyle(thumb).width/2`) instead of the hard-coded 12/24px, so the
+  thumb stays under the finger if the host root font-size ≠ 62.5 % (G4).
+- **Window-level `pointermove`/`pointerup` fallback** while dragging (a fast drag
+  off the thumb still tracks even if `setPointerCapture` throws).
+- **No count-up mid-drag:** `_dragInstant` flag makes `animateNumber` write
+  instantly during a drag; one animated settle runs on release (no machine-gun).
+- **Fill + thumb release transitions unified to `--motion-fast`** so they land
+  together (was fill trailing the thumb by 150 ms).
+
+### Point 12 — mobile km ticks legible
+- `renderRangeSlider` gains `visibleTickValues`; km slider passes
+  `[5000,20000,30000,50000]` (the actual even-spaced steps — 35k isn't a real
+  step). Non-labelled stops render as a 2px tick **mark**
+  (`.ampy-calc__slider-tick--marker::after`), not invisible text. Deleted the old
+  `≤390px` "blank every interior label" hack. All 8 stops stay
+  draggable/snappable/keyboard-reachable. Tick→track gap `xs→sm`. **Verified:** 4
+  legible labels + marks at 375/320px.
+
+### Point 14 — mobile "blaffigt"
+- Four clamp **floors** lowered (desktop ceilings untouched): `--fs-2xl` 2.2→2.0,
+  `--fs-xl` 2.0→1.8, `--fs-lg` 1.8→1.7, `--fs-4xl` 4.0→3.4rem.
+- `@container ≤600px`: H1 `clamp(2rem,6.4cqi,2.6rem)` lh 1.15 ls −0.01em; selector
+  img 56→48px + prominent padding md→sm; hero value↔unit gap 1.2→0.6rem + unit
+  `--fs-xl→--fs-lg`; dark-card block gap + monthly-panel padding lg→md; input card
+  gap lg→md; container gap →lg.
+- `@container ≤480px`: hero value steps down to `--fs-3xl`.
+- `@container ≤420px`: card padding lg→md (reclaims ~10px/side).
+- **Verified at 320px:** no horizontal overflow, hero value clears the card edge
+  by ≥8px, H1 reads as a tight 2-line headline.
+
+### Point 15 / Part 3 — pixel craft
+- **4-tier staircase (3-0a):** 10-year cumulative tile value `--fs-lg→--fs-xl`
+  (`#ampyEvCumulativeTile` only; "Att betala" stays lg); monthly delta
+  `--fs-lg→--fs-xl`. Schemalagd value already `--fs-md`. Squint test = 4 tiers.
+- **Bars as climax (3-0b):** bar height 6→10px; empty-track tint →0.08; bar gap
+  md→lg; public bar gets a **crisp amber end cap** (solid→darker, was fading
+  translucent). Third schemalagd bar = lighter dashed green (subordinate).
+- **Badges 3-tier (3-1):** `--badge--promote` (solid teal: Bästsäljare,
+  Rekommenderas), `--badge--soft` (wash: Prisvärd, Dubbel laddning, Populär),
+  `--badge--flow`/`--muted` (outline: Offert, Företag/BRF). Mapped via
+  `BADGE_TIER`/`badgeTierClass` in `engine.js`. Right-aligned before the chevron
+  (selected) / off the edge (list). **Verified:** 7 badges, 3 distinct weights.
+- **Weight system (3-2):** selector img 56→48px desktop (matches dropdown option);
+  `--tier--primary` gap lg→md; dropped the tier-label negative margin; tier-label
+  tracking 0.08→0.06em (P2-3).
+- **Hero (3-3):** hero-sub colour muted→full (owner-loved framing no longer faint).
+- **Trio (3-4):** `1.2fr 1fr` at ≥560px; removed the redundant trio→monthly `<hr>`.
+- **CTA (3-5):** "Läs mer" promoted to a bordered secondary button
+  (`--btn-link--bordered`); **8c continuous underline** — phrase wrapped in one
+  inline `.ampy-calc__btn-link-label`, container `text-decoration:none`, only the
+  label underlines on hover/focus, arrow excluded (**verified**); form CTA
+  `scrollIntoView` `nearest`→`start`.
+- **Nested cards (3-6):** dropped the lead-form's full border (now a section, not
+  a mini-card).
+- **Polish:** all focus rings repointed from the old `rgba(0,169,145,…)` to the
+  current `rgb(0,125,107)` (P2-5); segmented + AC/DC toggle share `min-height:4rem`
+  + active region pill 1px ring (P2-4); tick labels mono→body font (P2-2);
+  reveal-stagger re-timed 40/100/160/220/280 (P2-6); `≈` kept on the hero only
+  (1 glyph remains, was 5).
+
+### Port to WP (next)
+- `00_js-engine.js`: `setupTooltips` + popover system, slider drag changes
+  (`touch-action`/`preventDefault`/non-passive, `dragGeom` thumb-width, window
+  listeners, `_dragInstant`, release-transition), `visibleTickValues`, the badge
+  tier map, `scrollIntoView` block:start.
+- `01_backend.php` markup: `.ampy-calc__btn-link-label` wrapper, removed
+  trio→monthly `<hr>`, the four monthly `≈` removed.
+- The CSS block is the FluentSnippets frontend stylesheet (1:1).
+- ⚠ G4 still open: scope `html{font-size:62.5%}` to the component in the WP port
+  (the popover already uses px fallbacks so it survives a 16px host root).
+
 ## Backlog — judgment calls for owner (not yet done)
 
 1. **Default public type = DC (5,99 kr/kWh) maximises the headline.** DC vs AC (4,50)

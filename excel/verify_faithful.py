@@ -303,17 +303,23 @@ def parse_price_areas(rows):
         if name in (None,):
             label = code
         hr_raw = get(r, col, 'home_rate_sek_per_kwh', None)
+        home_rate = php_float(hr_raw) if hr_raw not in (None, '') else 2.20
+        # homeRateOptimizedSekPerKwh: new PriceAreas column. Blank/absent -> ~88%
+        # of the flat home rate (mirrors PHP `round($home_rate * 0.88, 2)`).
+        opt_raw = get(r, col, 'home_rate_optimized_sek_per_kwh', None)
+        opt_rate = round(home_rate * 0.88, 2) if opt_raw in (None, '') else php_float(opt_raw)
         regions[code] = {
             'label': label,
-            'homeRateSekPerKwh': php_float(hr_raw) if hr_raw not in (None, '') else 2.20,
+            'homeRateSekPerKwh': home_rate,
+            'homeRateOptimizedSekPerKwh': opt_rate,
             '_is_default': php_trim(get(r, col, 'is_default')).lower() == 'true',
         }
     if not regions:
         regions = {
-            'SE1': {'label': 'SE1 – Norra Sverige', 'homeRateSekPerKwh': 1.45, '_is_default': False},
-            'SE2': {'label': 'SE2 – Norra Mellansverige', 'homeRateSekPerKwh': 1.60, '_is_default': False},
-            'SE3': {'label': 'SE3 – Södra Mellansverige', 'homeRateSekPerKwh': 2.20, '_is_default': True},
-            'SE4': {'label': 'SE4 – Södra Sverige', 'homeRateSekPerKwh': 2.60, '_is_default': False},
+            'SE1': {'label': 'SE1 – Norra Sverige', 'homeRateSekPerKwh': 1.45, 'homeRateOptimizedSekPerKwh': 1.05, '_is_default': False},
+            'SE2': {'label': 'SE2 – Norra Mellansverige', 'homeRateSekPerKwh': 1.60, 'homeRateOptimizedSekPerKwh': 1.15, '_is_default': False},
+            'SE3': {'label': 'SE3 – Södra Mellansverige', 'homeRateSekPerKwh': 2.20, 'homeRateOptimizedSekPerKwh': 1.35, '_is_default': True},
+            'SE4': {'label': 'SE4 – Södra Sverige', 'homeRateSekPerKwh': 2.60, 'homeRateOptimizedSekPerKwh': 1.45, '_is_default': False},
         }
     return regions
 
@@ -423,28 +429,28 @@ EXPECTED = {
     {"id":"annan","name":"Annan elbil","description":"Genomsnittlig förbrukning","badge":None,"available":True,"efficiencyKwhPer10km":1.7,"onboardAcKw":11},
   ],
   "CHARGERS": [
-    {"id":"zaptec-go","name":"Zaptec Go","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4490,"grossPriceSek":8980,"slug":"https://ampy.se/laddboxar/zaptec-go/","available":True,"offertOnly":False},
-    {"id":"zaptec-go-2","name":"Zaptec Go 2","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5890,"grossPriceSek":11780,"slug":"https://ampy.se/laddboxar/zaptec-go-2/","available":True,"offertOnly":False},
-    {"id":"easee-charge-up","name":"Easee Charge Up","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4390,"grossPriceSek":8780,"slug":"https://ampy.se/laddboxar/easee-charge-up/","available":True,"offertOnly":False},
-    {"id":"nexblue-edge-2","name":"NexBlue Edge 2","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4190,"grossPriceSek":8380,"slug":"https://ampy.se/laddboxar/nexblue-edge-2/","available":True,"offertOnly":False},
-    {"id":"go-e-gemini-flex-2-0","name":"go-e Gemini Flex 2.0","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4990,"grossPriceSek":9980,"slug":"https://ampy.se/laddboxar/go-e-gemini-flex-2-0/","available":True,"offertOnly":False},
-    {"id":"tesla-wall-connector","name":"Tesla Wall Connector","description":"11 kW · inkl. installation","badge":None,"maxPowerKw":11,"priceSek":4450,"grossPriceSek":8900,"slug":"https://ampy.se/laddboxar/tesla-wall-connector/","available":True,"offertOnly":False},
-    {"id":"charge-amps-luna","name":"Charge Amps Luna","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4850,"grossPriceSek":9700,"slug":"https://ampy.se/laddboxar/charge-amps-luna/","available":True,"offertOnly":False},
-    {"id":"charge-amps-halo","name":"Charge Amps Halo","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4990,"grossPriceSek":9980,"slug":"https://ampy.se/laddboxar/charge-amps-halo/","available":True,"offertOnly":False},
-    {"id":"charge-amps-dawn","name":"Charge Amps Dawn","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":6850,"grossPriceSek":13700,"slug":"https://ampy.se/laddboxar/charge-amps-dawn/","available":True,"offertOnly":False},
-    {"id":"charge-amps-aura","name":"Charge Amps Aura","description":"11 kW · stativ · inkl. installation","badge":None,"maxPowerKw":11,"priceSek":14550,"grossPriceSek":29100,"slug":"https://ampy.se/laddboxar/charge-amps-aura/","available":True,"offertOnly":False},
-    {"id":"defa-power","name":"Defa Power","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5250,"grossPriceSek":10500,"slug":"https://ampy.se/laddboxar/defa-power/","available":True,"offertOnly":False},
-    {"id":"amina-s","name":"Amina S","description":"11 kW · inkl. installation","badge":"Rekommenderas","maxPowerKw":11,"priceSek":4350,"grossPriceSek":8700,"slug":"https://ampy.se/laddboxar/amina-s/","available":True,"offertOnly":False},
-    {"id":"garo-entity-home","name":"Garo Entity Home","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5310,"grossPriceSek":10620,"slug":"https://ampy.se/laddboxar/garo-entity-home/","available":True,"offertOnly":False},
-    {"id":"wallbox-pulsar-max","name":"Wallbox Pulsar Max","description":"22 kW · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4425,"grossPriceSek":8850,"slug":"https://ampy.se/laddboxar/wallbox-pulsar-max/","available":True,"offertOnly":False},
-    {"id":"zaptec-pro","name":"Zaptec Pro","description":"För BRF & företag · offert","badge":"Offert","maxPowerKw":22,"priceSek":None,"grossPriceSek":None,"slug":"https://ampy.se/laddboxar/zaptec-pro/","available":True,"offertOnly":True},
-    {"id":"garo-entity-pro","name":"Garo Entity Pro","description":"För BRF & företag","badge":"Företag/BRF","maxPowerKw":22,"priceSek":7350,"grossPriceSek":14700,"slug":"https://ampy.se/laddboxar/garo-entity-pro/","available":True,"offertOnly":False},
+    {"id":"zaptec-go","name":"Zaptec Go","description":"Kompakt favorit · inkl. installation","badge":"Bästsäljare","maxPowerKw":22,"priceSek":4490,"grossPriceSek":8980,"slug":"https://ampy.se/laddboxar/zaptec-go/","available":True,"offertOnly":False},
+    {"id":"zaptec-go-2","name":"Zaptec Go 2","description":"Inbyggd display · inkl. installation","badge":"Rekommenderas","maxPowerKw":22,"priceSek":5890,"grossPriceSek":11780,"slug":"https://ampy.se/laddboxar/zaptec-go-2/","available":True,"offertOnly":False},
+    {"id":"easee-charge-up","name":"Easee Charge Up","description":"Smart & nätt · inkl. installation","badge":"Bästsäljare","maxPowerKw":22,"priceSek":4390,"grossPriceSek":8780,"slug":"https://ampy.se/laddboxar/easee-charge-up/","available":True,"offertOnly":False},
+    {"id":"nexblue-edge-2","name":"NexBlue Edge 2","description":"Prisbelönt design · inkl. installation","badge":"Prisvärd","maxPowerKw":22,"priceSek":4190,"grossPriceSek":8380,"slug":"https://ampy.se/laddboxar/nexblue-edge-2/","available":True,"offertOnly":False},
+    {"id":"go-e-gemini-flex-2-0","name":"go-e Gemini Flex 2.0","description":"Fast eller flyttbar · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4990,"grossPriceSek":9980,"slug":"https://ampy.se/laddboxar/go-e-gemini-flex-2-0/","available":True,"offertOnly":False},
+    {"id":"tesla-wall-connector","name":"Tesla Wall Connector","description":"Fast kabel 7,3 m · inkl. installation","badge":None,"maxPowerKw":11,"priceSek":4450,"grossPriceSek":8900,"slug":"https://ampy.se/laddboxar/tesla-wall-connector/","available":True,"offertOnly":False},
+    {"id":"charge-amps-luna","name":"Charge Amps Luna","description":"Skandinavisk design · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4850,"grossPriceSek":9700,"slug":"https://ampy.se/laddboxar/charge-amps-luna/","available":True,"offertOnly":False},
+    {"id":"charge-amps-halo","name":"Charge Amps Halo","description":"Fast kabel & statusljus · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4990,"grossPriceSek":9980,"slug":"https://ampy.se/laddboxar/charge-amps-halo/","available":True,"offertOnly":False},
+    {"id":"charge-amps-dawn","name":"Charge Amps Dawn","description":"Svensktillverkad premium · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":6850,"grossPriceSek":13700,"slug":"https://ampy.se/laddboxar/charge-amps-dawn/","available":True,"offertOnly":False},
+    {"id":"charge-amps-aura","name":"Charge Amps Aura","description":"Två bilar samtidigt · inkl. installation","badge":"Dubbel laddning","maxPowerKw":22,"priceSek":14550,"grossPriceSek":29100,"slug":"https://ampy.se/laddboxar/charge-amps-aura/","available":True,"offertOnly":False},
+    {"id":"defa-power","name":"Defa Power","description":"Display & −40 °C · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5250,"grossPriceSek":10500,"slug":"https://ampy.se/laddboxar/defa-power/","available":True,"offertOnly":False},
+    {"id":"amina-s","name":"Amina S","description":"Marknadens minsta · inkl. installation","badge":None,"maxPowerKw":11,"priceSek":4350,"grossPriceSek":8700,"slug":"https://ampy.se/laddboxar/amina-s/","available":True,"offertOnly":False},
+    {"id":"garo-entity-home","name":"Garo Entity Home","description":"Driftsäker villabox · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":5310,"grossPriceSek":10620,"slug":"https://ampy.se/laddboxar/garo-entity-home/","available":True,"offertOnly":False},
+    {"id":"wallbox-pulsar-max","name":"Wallbox Pulsar Max","description":"Prisbelönt & kompakt · inkl. installation","badge":None,"maxPowerKw":22,"priceSek":4425,"grossPriceSek":8850,"slug":"https://ampy.se/laddboxar/wallbox-pulsar-max/","available":True,"offertOnly":False},
+    {"id":"zaptec-pro","name":"Zaptec Pro","description":"Skalbar för flera platser · offert","badge":"Offert","maxPowerKw":22,"priceSek":None,"grossPriceSek":None,"slug":"https://ampy.se/laddboxar/zaptec-pro/","available":True,"offertOnly":True},
+    {"id":"garo-entity-pro","name":"Garo Entity Pro","description":"Byggd för många bilar","badge":"Företag/BRF","maxPowerKw":22,"priceSek":7350,"grossPriceSek":14700,"slug":"https://ampy.se/laddboxar/garo-entity-pro/","available":True,"offertOnly":False},
   ],
   "REGIONS": {
-    "SE1":{"label":"SE1 – Norra Sverige","homeRateSekPerKwh":1.45},
-    "SE2":{"label":"SE2 – Norra Mellansverige","homeRateSekPerKwh":1.5},
-    "SE3":{"label":"SE3 – Södra Mellansverige","homeRateSekPerKwh":1.9},
-    "SE4":{"label":"SE4 – Södra Sverige","homeRateSekPerKwh":2.1},
+    "SE1":{"label":"SE1 – Norra Sverige","homeRateSekPerKwh":1.45,"homeRateOptimizedSekPerKwh":1.05},
+    "SE2":{"label":"SE2 – Norra Mellansverige","homeRateSekPerKwh":1.5,"homeRateOptimizedSekPerKwh":1.15},
+    "SE3":{"label":"SE3 – Södra Mellansverige","homeRateSekPerKwh":1.9,"homeRateOptimizedSekPerKwh":1.35},
+    "SE4":{"label":"SE4 – Södra Sverige","homeRateSekPerKwh":2.1,"homeRateOptimizedSekPerKwh":1.45},
   },
   "RATES": {"horizonYears":10,"publicAcRateSekPerKwh":4.5,"publicDcRateSekPerKwh":5.5,"chargerEfficiencyPct":0.9,"gronTeknikRate":0.485,"gronTeknikCapPerApplicant":50000,"maxApplicants":2,"uncertaintyBand":0.1},
   "ADVANCED_DEFAULTS": {"annualKm":20000,"publicChargingPct":100,"publicChargingType":"dc"},

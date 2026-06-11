@@ -207,6 +207,10 @@ function ampy_ev_calc_api_submit_lead( WP_REST_Request $req ): WP_REST_Response|
     $ts      = sanitize_text_field( $payload['timestamp'] ?? '' );
     $contact = $contact_in;
     $inputs  = is_array( $payload['inputs'] ?? null ) ? $payload['inputs'] : [];
+    // `results.ev` is read tolerantly: every field below is `?? default`, so the
+    // endpoint NEVER keys on any single property. In particular the R3 prototype
+    // dropped `includeInvestment` from this object — its absence is a no-op here
+    // (do not reintroduce a hard dependency on it or any other optional field).
     $res     = is_array( $payload['results']['ev'] ?? null ) ? $payload['results']['ev'] : [];
 
     $webhook_url  = get_post_meta( $post_id, '_ampy_ev_calc_webhook_url',   true );
@@ -840,18 +844,26 @@ function ampy_ev_calc_parse_price_areas( array $rows ): array {
         $r    = $rows[$i];
         $code = trim( $r[ $col['area_code'] ] ?? '' );
         if ( ! $code ) continue;
+        // homeRateOptimizedSekPerKwh: per-zone scheduled-charging (optimised) rate.
+        // New PriceAreas column. When absent/blank, fall back to ~88% of the flat
+        // home rate so old data never produces a NaN/0 optimised bar downstream
+        // (mirrors the engine's `homeRate * 0.88` safe fallback).
+        $home_rate = (float)( $r[ $col['home_rate_sek_per_kwh'] ] ?? 2.20 );
+        $opt_raw   = (string) ( $r[ $col['home_rate_optimized_sek_per_kwh'] ] ?? '' );
+        $opt_rate  = ( $opt_raw === '' ) ? round( $home_rate * 0.88, 2 ) : (float) $opt_raw;
         $regions[$code] = [
-            'label'             => trim( $r[ $col['name'] ] ?? $code ),
-            'homeRateSekPerKwh' => (float)( $r[ $col['home_rate_sek_per_kwh'] ] ?? 2.20 ),
-            '_is_default'       => strtolower( $r[ $col['is_default'] ] ?? '' ) === 'true',
+            'label'                      => trim( $r[ $col['name'] ] ?? $code ),
+            'homeRateSekPerKwh'          => $home_rate,
+            'homeRateOptimizedSekPerKwh' => $opt_rate,
+            '_is_default'                => strtolower( $r[ $col['is_default'] ] ?? '' ) === 'true',
         ];
     }
     if ( empty( $regions ) ) {
         $regions = [
-            'SE1' => [ 'label' => 'SE1 – Norra Sverige',       'homeRateSekPerKwh' => 1.45, '_is_default' => false ],
-            'SE2' => [ 'label' => 'SE2 – Norra Mellansverige', 'homeRateSekPerKwh' => 1.60, '_is_default' => false ],
-            'SE3' => [ 'label' => 'SE3 – Södra Mellansverige', 'homeRateSekPerKwh' => 2.20, '_is_default' => true  ],
-            'SE4' => [ 'label' => 'SE4 – Södra Sverige',       'homeRateSekPerKwh' => 2.60, '_is_default' => false ],
+            'SE1' => [ 'label' => 'SE1 – Norra Sverige',       'homeRateSekPerKwh' => 1.45, 'homeRateOptimizedSekPerKwh' => 1.05, '_is_default' => false ],
+            'SE2' => [ 'label' => 'SE2 – Norra Mellansverige', 'homeRateSekPerKwh' => 1.60, 'homeRateOptimizedSekPerKwh' => 1.15, '_is_default' => false ],
+            'SE3' => [ 'label' => 'SE3 – Södra Mellansverige', 'homeRateSekPerKwh' => 2.20, 'homeRateOptimizedSekPerKwh' => 1.35, '_is_default' => true  ],
+            'SE4' => [ 'label' => 'SE4 – Södra Sverige',       'homeRateSekPerKwh' => 2.60, 'homeRateOptimizedSekPerKwh' => 1.45, '_is_default' => false ],
         ];
     }
     return $regions;
@@ -969,6 +981,17 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
 
 <script>window.AmpyEvCalcData = <?= wp_json_encode( $js_data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ?>;</script>
 
+<!-- G4 font-scope: the prototype set 1rem=10px with a GLOBAL <style>html{font-size:62.5%}</style>.
+     Emitting that on the host page leaks: every rem-based element on the surrounding
+     WP/Bricks page would shrink to 62.5%. The whole calculator rem scale (tokens, type,
+     spacing, radii) assumes 1rem=10px, so we re-anchor it on the component wrapper only.
+     `font-size:62.5%` on .ampy-calc-outer leaves the host <html> root untouched; the
+     calculator reads its own size from `.ampy-calc{font-size:var(--fs-md)}` and the
+     fluid `--fs-*` clamps, which already mix cqi + px and degrade gracefully if a theme
+     forces a different inherited size. The popover (appended to <body>, outside this
+     scope) carries explicit px fallbacks for exactly this reason — see 02_styles.css. -->
+<style>.ampy-calc-outer{font-size:62.5%;}</style>
+
 <div class="ampy-calc-outer">
 <div class="ampy-calc" id="ampyEvCalc"
      data-default-car-id="<?= esc_attr( $default_car_id ) ?>"
@@ -1055,7 +1078,7 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <span class="ampy-calc__field-label-tiny">
               <span id="ampyEvPctLabel">Andel offentlig laddning</span>
               <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                      data-tip="Andelen av din laddning som sker publikt idag – och som du kan flytta hem med en egen laddbox. 100 % betyder att all din nuvarande publika laddning flyttas hem. Elbilsägare utan hemmaladdare laddar typiskt 60–80 % publikt.">i</button>
+                      data-tip="Hur stor del av din laddning du gör publikt idag i stället för hemma. Kalkylen visar vad du sparar genom att flytta den hem.">i</button>
             </span>
             <span class="ampy-calc__value-prominent ampy-calc__t-mono" id="ampyEvPctDisplay">
               <span id="ampyEvPctValue">—</span><span class="ampy-calc__value-unit">%</span>
@@ -1071,7 +1094,7 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
                      excludes the tooltip button. -->
                 <span id="ampyEvPubTypeLabel">Typ av offentlig laddning</span>
                 <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                        data-tip="AC = standard på parkeringar och köpcentra (~4,50 kr/kWh). DC = snabbladdare på motorvägar (~5,50 kr/kWh, abonnemang ~3,40–4,50).">i</button>
+                        data-tip="AC = långsam laddning vid parkering och köpcentrum (ca 4,50 kr/kWh). DC = snabbladdning längs vägen (ca 5,50 kr/kWh).">i</button>
               </span>
               <!-- a11y: each option is a native <button aria-pressed> — keyboard
                    operable (Enter/Space) and announced as a pressed/unpressed
@@ -1088,25 +1111,9 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <span class="ampy-calc__field-label">
               <span id="ampyEvRegionLabel">Elprisområde</span>
               <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                      data-tip="Marginal allt-i-ett hemmakostnad (spotpris + nät + skatt) per elprisområde: SE1 (norr) ca 1,45 kr/kWh — SE4 (söder) ca 2,10 kr/kWh. Ju dyrare hemma-el, desto lägre besparing per kWh.">i</button>
+                      data-tip="Ditt elprisområde (SE1 norr–SE4 söder). Dyrare hemma-el ger något lägre besparing per kWh.">i</button>
             </span>
             <div class="ampy-calc__segmented" role="group" aria-labelledby="ampyEvRegionLabel" id="ampyEvRegion"></div>
-          </div>
-
-          <!-- Applicants stepper -->
-          <div class="ampy-calc__field">
-            <div class="ampy-calc__field-row">
-              <span class="ampy-calc__field-label">
-                <span id="ampyEvApplicantsLabel">Antal sökande</span>
-                <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                        data-tip="Varje sökande höjer Grön Teknik-taket med 50 000 kr/år. Laddboxar kostar vanligtvis under taket, men relevant om ni köper flera boxar.">i</button>
-              </span>
-              <div class="ampy-calc__stepper" role="group" aria-labelledby="ampyEvApplicantsLabel">
-                <button type="button" class="ampy-calc__stepper-btn" id="ampyEvApplicantsDec" aria-label="Minska antal sökande">−</button>
-                <span class="ampy-calc__stepper-value ampy-calc__t-mono" id="ampyEvApplicantsValue" aria-live="polite">1</span>
-                <button type="button" class="ampy-calc__stepper-btn" id="ampyEvApplicantsInc" aria-label="Öka antal sökande">+</button>
-              </div>
-            </div>
           </div>
 
         </div><!-- /tier modifiers -->
@@ -1123,27 +1130,9 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
              announces ONLY the annual-saving headline after input settles. -->
         <div class="ampy-calc__card ampy-calc__card--surface" aria-label="Resultat">
 
-          <!-- ROI control: count the charger cost or not.
-               Best-practice two-pill segmented control (reuses .ampy-calc__toggle,
-               on-surface variant). Shows BOTH states at once; the active pill is
-               highlighted. No bordered settings box. -->
-          <div class="ampy-calc__roi-control">
-            <span class="ampy-calc__roi-control-label">
-              <!-- a11y: only the text node carries the id used as the group's
-                   accessible name, so the tooltip "i" button is NOT folded into
-                   the name. -->
-              <span id="ampyEvInvestmentToggleLabel">Räkna med laddboxens kostnad</span>
-              <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                      data-tip="Med investering: vi drar av vad laddboxen kostar (efter Grön Teknik) och visar återbetalningstid. Utan investering: ren besparing på laddningen – oavsett vad laddboxen kostar.">i</button>
-            </span>
-            <div class="ampy-calc__toggle ampy-calc__toggle--investment"
-                 role="group" aria-labelledby="ampyEvInvestmentToggleLabel" id="ampyEvInvestmentToggle">
-              <button type="button" class="ampy-calc__toggle-option" data-value="with"    aria-pressed="true">Med investering</button>
-              <button type="button" class="ampy-calc__toggle-option" data-value="without" aria-pressed="false">Utan investering</button>
-            </div>
-          </div>
-
-          <!-- Hero: ANNUAL saving (dominant) -->
+          <!-- Hero: ANNUAL saving (dominant) — now the first element in the card
+               (the ROI "Med/Utan investering" toggle was removed; the investment
+               is always included). -->
           <div class="ampy-calc__hero15">
             <span class="ampy-calc__hero15-eyebrow">Du sparar per år</span>
             <span class="ampy-calc__hero15-value ampy-calc__t-mono">
@@ -1153,7 +1142,6 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <span class="ampy-calc__hero15-sub" id="ampyEvHeroAnnualSub">
               jämfört med fortsatt publik laddning
             </span>
-            <span class="ampy-calc__hero15-range" id="ampyEvAnnualRange">—</span>
           </div>
 
           <!-- a11y: single polite, debounced live region. Announces only the
@@ -1180,7 +1168,8 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             </div>
           </div>
 
-          <hr class="ampy-calc__internal-divider">
+          <!-- 3-4: divider removed — the monthly panel's own subtle bg separates
+               it from the trio, so a hairline here is a redundant third rule. -->
 
           <!-- Monthly cost comparison: publik vs hemma (replaces the payback chart).
                monthlyPublic / monthlyHome = publicKwh × rate ÷ 12; saving = the
@@ -1191,23 +1180,36 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
               <span class="ampy-calc__evidence-label">Din månadskostnad – publikt vs hemma</span>
             </div>
             <div class="ampy-calc__monthly-cols">
-              <div class="ampy-calc__monthly-col">
+              <div class="ampy-calc__monthly-col ampy-calc__monthly-col--public">
                 <span class="ampy-calc__monthly-col-label">Publik laddning idag</span>
                 <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--public ampy-calc__t-mono">
-                  ≈ <span id="ampyEvMonthlyPublic">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
+                  <span id="ampyEvMonthlyPublic">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
                 </span>
               </div>
-              <div class="ampy-calc__monthly-col">
+              <div class="ampy-calc__monthly-col ampy-calc__monthly-col--home">
                 <span class="ampy-calc__monthly-col-label">Hemma efter installation</span>
                 <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--home ampy-calc__t-mono">
-                  ≈ <span id="ampyEvMonthlyHome">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
+                  <span id="ampyEvMonthlyHome">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
+                </span>
+              </div>
+              <!-- Third bar: scheduled / optimised home charging (owner decision D1).
+                   Visually subordinate (lighter, dashed) to the solid home bar.
+                   The headline annual saving is UNCHANGED — this is additive upside. -->
+              <div class="ampy-calc__monthly-col ampy-calc__monthly-col--homeopt">
+                <span class="ampy-calc__monthly-col-label">
+                  Hemma, schemalagd
+                  <button type="button" class="ampy-calc__tip" aria-label="Mer info"
+                          data-tip="Din laddbox laddar när elen är som billigast — spotpriset är 30–60 % lägre på lågpristimmar. Det sänker din hemmakostnad ytterligare några procent. Beror på elavtal och elområde.">i</button>
+                </span>
+                <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--homeopt ampy-calc__t-mono">
+                  <span id="ampyEvMonthlyHomeOpt">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
                 </span>
               </div>
             </div>
             <div class="ampy-calc__monthly-delta" id="ampyEvMonthlyDelta">
               <span class="ampy-calc__monthly-delta-label">Du sparar</span>
               <span class="ampy-calc__monthly-delta-value ampy-calc__t-mono">
-                ≈ <span id="ampyEvMonthlySaving">—</span><span class="ampy-calc__monthly-delta-unit">kr/mån</span>
+                <span id="ampyEvMonthlySaving">—</span><span class="ampy-calc__monthly-delta-unit">kr/mån</span>
               </span>
             </div>
           </div>
@@ -1228,17 +1230,8 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <button type="button"
                     class="ampy-calc__btn ampy-calc__btn--primary ampy-calc__btn--lg ampy-calc__btn--block"
                     id="ampyEvCtaQuote">
-              Få en exakt offert <?= ampy_ev_arrow_icon() ?>
+              Få en laddbox-offert <?= ampy_ev_arrow_icon() ?>
             </button>
-
-            <!-- P1-2 micro-trust: risk-reversal at the decision point, directly
-                 under the primary CTA. Reuses the .ampy-calc__micro-trust styles.
-                 Decorative check icons are aria-hidden; the text reads cleanly. -->
-            <p class="ampy-calc__micro-trust">
-              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Svar inom 24 h</span>
-              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Inget köpkrav</span>
-              <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Dina uppgifter skyddas</span>
-            </p>
 
             <form class="ampy-calc__lead-form" id="ampyEvLeadForm" novalidate>
               <span class="ampy-calc__t-small" style="color:var(--on-surface-text);">
@@ -1257,12 +1250,12 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
                 </div>
                 <div class="ampy-calc__field">
                   <label class="ampy-calc__field-label" for="ampyEvLeadPhone">Telefon</label>
-                  <input type="tel"   class="ampy-calc__input" id="ampyEvLeadPhone" required autocomplete="tel" placeholder="07X XXX XX XX">
+                  <input type="tel"   class="ampy-calc__input" id="ampyEvLeadPhone" required autocomplete="tel" inputmode="tel">
                   <span class="ampy-calc__input-error" id="ampyEvLeadPhoneError"></span>
                 </div>
                 <div class="ampy-calc__field">
                   <label class="ampy-calc__field-label" for="ampyEvLeadZip">Postnummer</label>
-                  <input type="text"  class="ampy-calc__input" id="ampyEvLeadZip"   required autocomplete="postal-code" inputmode="numeric" placeholder="12345">
+                  <input type="text"  class="ampy-calc__input" id="ampyEvLeadZip"   required autocomplete="postal-code" inputmode="numeric">
                   <span class="ampy-calc__input-error" id="ampyEvLeadZipError"></span>
                 </div>
               </div>
@@ -1311,8 +1304,13 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
               <span>Något gick fel. Ring oss på <a href="tel:+46102657979" style="color:inherit;text-decoration:underline;">010-265 79 79</a> så hjälper vi dig direkt.</span>
             </div>
 
-            <a class="ampy-calc__btn-link ampy-calc__btn-link--center" id="ampyEvProductLink" href="#" target="_self">
-              Läs mer om <span id="ampyEvProductLinkName">laddboxen</span>
+            <!-- 8c: the whole phrase is ONE inline label so hover/focus draws a
+                 single continuous underline (incl. the dynamic box name, any
+                 length); the arrow is a separate flex sibling and never underlines.
+                 Also promoted to a bordered secondary button (Part 3 / 3-5) so the
+                 two CTAs read as a deliberate primary/secondary pair. -->
+            <a class="ampy-calc__btn-link ampy-calc__btn-link--center ampy-calc__btn-link--bordered" id="ampyEvProductLink" href="#" target="_self">
+              <span class="ampy-calc__btn-link-label">Läs mer om <span id="ampyEvProductLinkName">laddboxen</span></span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </a>
 
@@ -1331,12 +1329,12 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
               <div class="ampy-calc__methodology-stack" id="ampyEvMethodologyStack"></div>
               <div class="ampy-calc__disclaimers">
                 <p>
-                  <strong style="color:var(--text-primary);">Så här ska du läsa kalkylen.</strong>
-                  Siffrorna bygger på publik branschdata 2025–2026. Verkligt utfall beror på körmönster,
-                  elprisutveckling och laddvanor. Kalkylen är en uppskattning — inte ett erbjudande
-                  och inte bindande för Ampy. För ett exakt pris, begär en offert.
+                  <strong style="color:var(--text-primary);">Så här läser du kalkylen.</strong>
+                  Siffrorna bygger på publik branschdata för 2025–2026. Ditt verkliga utfall beror på
+                  hur du kör, hur du laddar och hur elpriset utvecklas. Kalkylen är en uppskattning —
+                  inte ett erbjudande och inte bindande för Ampy. Vill du ha ett exakt pris, begär en offert.
                 </p>
-                <p>* Ungefärligt pris inkl. installation &amp; moms efter Grön Teknik-avdrag (ca 48,5% av priset). Slutpris beror på ditt hem och din installation.</p>
+                <p>* "Att betala" är ungefärligt pris inkl. installation och moms, med Grön Teknik-avdraget redan avdraget. Slutpriset beror på ditt hem och din installation.</p>
               </div>
             </div>
           </details>

@@ -25,10 +25,10 @@
   var CHARGERS  = _d.CHARGERS  || [];
 
   var REGIONS = _d.REGIONS || {
-    SE1: { label: "SE1 – Norra Sverige",       homeRateSekPerKwh: 1.45 },
-    SE2: { label: "SE2 – Norra Mellansverige", homeRateSekPerKwh: 1.50 },
-    SE3: { label: "SE3 – Södra Mellansverige", homeRateSekPerKwh: 1.90 },
-    SE4: { label: "SE4 – Södra Sverige",       homeRateSekPerKwh: 2.10 }
+    SE1: { label: "SE1 – Norra Sverige",       homeRateSekPerKwh: 1.45, homeRateOptimizedSekPerKwh: 1.05 },
+    SE2: { label: "SE2 – Norra Mellansverige", homeRateSekPerKwh: 1.50, homeRateOptimizedSekPerKwh: 1.15 },
+    SE3: { label: "SE3 – Södra Mellansverige", homeRateSekPerKwh: 1.90, homeRateOptimizedSekPerKwh: 1.35 },
+    SE4: { label: "SE4 – Södra Sverige",       homeRateSekPerKwh: 2.10, homeRateOptimizedSekPerKwh: 1.45 }
   };
 
   var RATES = Object.assign({
@@ -55,6 +55,11 @@
   var PCT_STEPS = [0, 25, 50, 75, 100];
 
   /* ── State ──────────────────────────────────────────────────────────── */
+  /* The investment is ALWAYS included now (single view: net price + 10-yr net).
+     The ROI "Med/Utan investering" toggle was removed (owner decision); the
+     10-yr tile always uses calculateFor's cumulativeNet series.
+     numTaxApplicants is hard-pinned to 1 (the "Antal sökande" stepper UI was
+     removed) — the engine's Grön Teknik cap logic still reads it. */
   var state = {
     evModelId:        null,
     chargerId:        null,
@@ -62,10 +67,7 @@
     numTaxApplicants: 1,
     annualKm:         ADVANCED_DEFAULTS.annualKm,
     publicChargingPct:ADVANCED_DEFAULTS.publicChargingPct,
-    publicChargingType: ADVANCED_DEFAULTS.publicChargingType,
-    /* ROI toggle (spec 2): true = "med investering" (subtract charger cost,
-       show payback); false = "utan investering" (pure laddning-saving). */
-    includeInvestment: true
+    publicChargingType: ADVANCED_DEFAULTS.publicChargingType
   };
 
   /* ── Helpers ────────────────────────────────────────────────────────── */
@@ -227,8 +229,16 @@
     var homeRate   = (REGIONS[state.region] || {}).homeRateSekPerKwh || 1.90;
     var rateGap    = publicRate - homeRate;
 
+    /* Scheduled / optimised home rate (owner decision D1).
+       A modern laddbox shifts charging to the cheapest hours, so the effective
+       home rate is lower. This feeds the THIRD "Hemma, schemalagd" bar ONLY —
+       the headline annualSaving below stays anchored to the conservative flat
+       homeRate and is NOT touched. Safe fallback (~22% under flat) if the
+       per-zone optimised rate is absent in the data. */
+    var homeRateOpt = (REGIONS[state.region] || {}).homeRateOptimizedSekPerKwh || homeRate * 0.78;
+
     /* Annual saving — independent of the box price, so it is valid for
-       offert-only boxes too. */
+       offert-only boxes too. Uses the FLAT homeRate (unchanged). */
     var annualSaving = publicKwh * rateGap;
 
     /* Monthly cost comparison — what the public-charged kWh cost publicly vs at
@@ -237,6 +247,11 @@
     var monthlyPublicCost = publicKwh * publicRate / 12;
     var monthlyHomeCost   = publicKwh * homeRate   / 12;
     var monthlySaving     = monthlyPublicCost - monthlyHomeCost;
+
+    /* Third bar: monthly cost if the box schedules charging to the cheapest
+       hours. Same shape as monthlyHomeCost, at the optimised rate. Additive
+       upside — does NOT change the headline saving. */
+    var monthlyHomeOptCost = publicKwh * homeRateOpt / 12;
 
     /* Charger cost + Grön Teknik.
        The catalogue ships TWO real prices per box:
@@ -277,8 +292,10 @@
       homeRate:            homeRate,
       rateGap:             rateGap,
       annualSaving:        annualSaving,
+      homeRateOpt:         homeRateOpt,
       monthlyPublicCost:   monthlyPublicCost,
       monthlyHomeCost:     monthlyHomeCost,
+      monthlyHomeOptCost:  monthlyHomeOptCost,
       monthlySaving:       monthlySaving,
       grossPrice:          grossPrice,
       gronTeknik:          gronTeknik,
@@ -318,6 +335,11 @@
   /* =====================================================================
      COUNT-UP ANIMATION
      ===================================================================== */
+  /* Point 11c: while a slider is being dragged, the count-up is suppressed —
+     numbers update INSTANTLY each step so the result column doesn't "machine-gun"
+     through intermediate counts on a fast drag. The full animated render runs
+     once on release (endDrag → renderAll). Toggled by the slider drag handlers. */
+  var _dragInstant = false;
   var previousValues = {};
   function animateNumber(key, targetValue, formatter, elementId) {
     var el = $(elementId);
@@ -326,7 +348,7 @@
     var from    = hasPrev ? previousValues[key] : targetValue;
     previousValues[key] = targetValue;
     el.textContent = formatter(targetValue);
-    if (!hasPrev || prefersReducedMotion || !isFinite(targetValue) ||
+    if (!hasPrev || _dragInstant || prefersReducedMotion || !isFinite(targetValue) ||
         !isFinite(from) || from === targetValue) return;
     var duration = 280, start = performance.now(), finalized = false;
     function tick(now) {
@@ -349,6 +371,23 @@
 
   function chargerIconSvg() {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 8h4M12 5v6M9 20h6"/></svg>';
+  }
+
+  /* Badge 3-tier map (Part 3 §3-1). Promote = solid teal (the boxes Ampy
+     pushes); Attribute = soft wash (helpful descriptor); Flow = muted outline
+     ("different path"). Unknown tags fall back to the soft descriptor look. */
+  var BADGE_TIER = {
+    "Bästsäljare":   "promote",
+    "Rekommenderas": "promote",
+    "Prisvärd":      "soft",
+    "Dubbel laddning": "soft",
+    "Populär":       "soft",
+    "Prisbelönt":    "soft",
+    "Offert":        "flow",
+    "Företag/BRF":   "flow"
+  };
+  function badgeTierClass(tag) {
+    return "ampy-calc__badge--" + (BADGE_TIER[tag] || "soft");
   }
 
   function renderSelector(opts) {
@@ -391,7 +430,8 @@
 
       if (item.badge) {
         var badge = document.createElement("span");
-        badge.className = "ampy-calc__badge" + (item.available ? "" : " ampy-calc__badge--muted");
+        badge.className = "ampy-calc__badge " +
+          (item.available ? badgeTierClass(item.badge) : "ampy-calc__badge--muted");
         badge.textContent = item.badge;
         btn.appendChild(badge);
       }
@@ -413,8 +453,9 @@
       var badgeEl = $(p + "Badge" + suffix);
       badgeEl.innerHTML = "";
       if (selected.badge) {
-        badgeEl.innerHTML = '<span class="ampy-calc__badge' +
-          (selected.available ? "" : " ampy-calc__badge--muted") + '">' + selected.badge + "</span>";
+        badgeEl.innerHTML = '<span class="ampy-calc__badge ' +
+          (selected.available ? badgeTierClass(selected.badge) : "ampy-calc__badge--muted") +
+          '">' + selected.badge + "</span>";
       }
     }
   }
@@ -462,6 +503,16 @@
 
     var ticks = document.createElement("div"); ticks.className = "ampy-calc__slider-ticks";
     var lastIdx = steps.length - 1;
+    /* Point 12: which steps print a LABEL. If opts.visibleTickValues is given
+       (the km slider passes [5000,20000,35000,50000]), only those + the two
+       endpoints render text; the rest become a small tick MARK so the scale
+       still reads without label collision on a 344px phone. With no option
+       (the % slider), every step is labelled. */
+    var visible = opts.visibleTickValues || null;
+    function tickShowsLabel(step, i) {
+      if (!visible) return true;
+      return i === 0 || i === lastIdx || visible.indexOf(step) !== -1;
+    }
     steps.forEach(function (step, i) {
       var t = document.createElement("button");
       t.type = "button";
@@ -471,12 +522,13 @@
          accessible name + tooltip so meaning is never lost. */
       var shortLabel = (opts.tickFormatter ? opts.tickFormatter(step) : opts.formatter(step));
       var fullLabel  = opts.formatter(step) + (opts.unit ? " " + opts.unit : "");
-      t.textContent = shortLabel;
+      var showLabel  = tickShowsLabel(step, i);
+      t.textContent = showLabel ? shortLabel : "";
+      if (!showLabel) t.classList.add("ampy-calc__slider-tick--marker");
       t.setAttribute("data-step", String(step));
       t.setAttribute("aria-label", fullLabel);
       t.setAttribute("title", fullLabel);
-      /* endpoints stay visible on narrow screens even when interior labels are
-         collapsed to "active only" (see styles.css narrow-container rule). */
+      /* endpoints flagged for any endpoint-specific styling. */
       if (i === 0 || i === lastIdx) t.setAttribute("data-endpoint", "true");
       t.addEventListener("click", function () { setVal(step); });
       ticks.appendChild(t);
@@ -553,13 +605,17 @@
     var rafId      = null;
     var lastClientX = 0;
 
-    /* Resolve the track travel in PIXELS (= rect.width − 2.4rem). 1.2rem each
-       side; root font-size is 62.5% so 1.2rem = 12px, 2.4rem = 24px. */
+    /* Resolve the track travel in PIXELS. Point 11b: read the REAL thumb
+       half-width instead of hard-coding 12/24px — the hard-code only held while
+       the host kept html{font-size:62.5%}. If a WP/Bricks theme overrides root
+       font-size, reading the computed thumb width keeps the thumb under the
+       finger. The CSS calc() path (pctToLeft/pctToFill) is already px-agnostic. */
     function dragGeom(clientX) {
       var r = slider.getBoundingClientRect();
-      var travel = r.width - 24;
+      var inset = parseFloat(getComputedStyle(thumb).width) / 2 || 12;
+      var travel = r.width - inset * 2;
       if (travel <= 0) return { travel: 0, x: 0, frac: 0 };
-      var x = Math.max(0, Math.min(travel, clientX - r.left - 12));
+      var x = Math.max(0, Math.min(travel, clientX - r.left - inset));
       return { travel: travel, x: x, frac: x / travel };
     }
     function nearestStepIndex(frac) {
@@ -616,19 +672,45 @@
     function endDrag() {
       if (!dragging) return;
       dragging = false;
+      _dragInstant = false;        /* re-enable count-ups for the settle render */
       slider.classList.remove("is-dragging");
       if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-      /* Snap home with the smooth transition restored. */
+      /* Point 11d: detach the window-level fallback listeners. */
+      window.removeEventListener("pointermove", onWindowMove);
+      window.removeEventListener("pointerup",   endDrag);
+      window.removeEventListener("pointercancel", endDrag);
+      /* Snap home with the smooth transition restored, and run ONE animated
+         render (count-up) for the settled value. */
       updateVisual(current);
+      opts.onChangeFn(current);
+    }
+
+    /* Point 11d: window-level move fallback so a fast drag that leaves the thumb
+       still tracks (setPointerCapture is in a swallowing try/catch and can fail
+       on some engines). */
+    function onWindowMove(e) {
+      if (!dragging) return;
+      lastClientX = e.clientX;
+      queueDragFrame();
     }
 
     slider.addEventListener("pointerdown", function (e) {
+      /* ignore right/middle click */
+      if (e.button != null && e.button !== 0) return;
       dragging = true;
+      _dragInstant = true;          /* suppress count-up while dragging (point 11c) */
       slider.classList.add("is-dragging");
       try { slider.setPointerCapture(e.pointerId); } catch (err) {}
       lastClientX = e.clientX;
+      /* Point 11a: own the gesture — stop iOS text-selection / scroll hijack so
+         the thumb tracks the finger 1:1 with no disambiguation delay. The
+         listener is non-passive (below) so preventDefault is honoured. */
+      e.preventDefault();
+      window.addEventListener("pointermove", onWindowMove);
+      window.addEventListener("pointerup",   endDrag);
+      window.addEventListener("pointercancel", endDrag);
       queueDragFrame();
-    });
+    }, { passive: false });
     slider.addEventListener("pointermove", function (e) {
       if (!dragging) return;
       lastClientX = e.clientX;      /* store latest; rAF coalesces the paint */
@@ -682,28 +764,6 @@
     });
   }
 
-  /* ROI investment toggle (two-pill segmented control) — sync aria-pressed on
-     both pills from state.includeInvestment ("with" pressed when investment is
-     counted). */
-  function updateInvestmentToggle() {
-    var group = $("ampyEvInvestmentToggle");
-    if (!group) return;
-    var on = state.includeInvestment;
-    Array.from(group.querySelectorAll(".ampy-calc__toggle-option")).forEach(function (btn) {
-      var isWith = btn.dataset.value === "with";
-      btn.setAttribute("aria-pressed", (isWith === on) ? "true" : "false");
-    });
-  }
-
-  /* =====================================================================
-     RENDER: APPLICANTS STEPPER
-     ===================================================================== */
-  function renderApplicants() {
-    $("ampyEvApplicantsValue").textContent = String(state.numTaxApplicants);
-    $("ampyEvApplicantsDec").disabled = state.numTaxApplicants <= 1;
-    $("ampyEvApplicantsInc").disabled = state.numTaxApplicants >= RATES.maxApplicants;
-  }
-
   /* =====================================================================
      RENDER: SAVINGS BREAKDOWN
      ===================================================================== */
@@ -730,12 +790,7 @@
         row("Hemmaladdning (" + regionName.split(" – ")[0] + ")", r.homeRate, "var(--state-success)", false) +
         '<div style="height:1px;background:var(--on-surface-border);margin:0.4rem 0;"></div>' +
         row("Du sparar per kWh", r.rateGap, "var(--state-success)", true) +
-      '</div>' +
-      '<p style="color:var(--on-surface-text-muted);font-size:var(--fs-xs);margin-top:var(--spacing-xs);">' +
-        fmtKm(Math.round(r.publicKwh)) + NBSP + 'kWh offentlig laddning per år × ' +
-        fmtRate(r.rateGap) + ' kr/kWh = ' +
-        fmtKr(r.annualSaving) + ' kr/år' +
-      '</p>';
+      '</div>';
   }
 
   /* =====================================================================
@@ -743,21 +798,18 @@
      ===================================================================== */
   function renderSingleResult() {
     var r = calculateFor(state.evModelId, state.chargerId);
-    var withInvest = state.includeInvestment;
 
-    /* Investment-only tile ("Att betala") is hidden when the toggle is OFF */
-    var netPayTile  = $("ampyEvNetPayTile");
-    if (netPayTile)  netPayTile.style.display  = withInvest ? "" : "none";
+    /* The investment is always included now (ROI toggle removed); the "Att
+       betala" tile is always visible. */
 
     if (r.unavailable) {
       $("ampyEvAnnualSaving").textContent = "—";
-      $("ampyEvAnnualRange").textContent = "—";
       $("ampyEvHeroAnnualSub").textContent = "Välj en elbil och en laddbox för att se din besparing.";
       $("ampyEvCumulativeValue").textContent = "—";
       $("ampyEvHero10Sub").textContent = "—";
       $("ampyEvNetPay").textContent = "—";
       $("ampyEvNetPaySub").textContent = "—";
-      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlySaving"].forEach(function(id){ $(id).textContent = "—"; });
+      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlyHomeOpt","ampyEvMonthlySaving"].forEach(function(id){ var el = $(id); if (el) el.textContent = "—"; });
       $("ampyEvSavingsBreakdown").innerHTML = "";
       announceHeadline("Välj en elbil och en laddbox för att se din besparing.");
       return;
@@ -765,25 +817,24 @@
 
     var horizon = r.horizon || 10;
 
-    /* HERO — annual saving is the dominant figure in BOTH toggle states */
+    /* HERO — annual saving is the dominant figure (flat-rate, conservative). */
     animateNumber("evAnnualSaving", r.annualSaving, fmtKr, "ampyEvAnnualSaving");
-    $("ampyEvAnnualRange").textContent = "Spann " + fmtKr(r.savingLow) + "–" + fmtKr(r.savingHigh) + " kr/år";
     /* P1-1 honest framing: the saving assumes today's public charging moves home.
        At 100 % say "all", otherwise name the share, so the big number stays honest
        (the default is 100 %, which maximises the headline). pct 0 → no saving. */
     var pubPct = Math.round((r.publicPct != null ? r.publicPct : 0) * 100);
     var heroSub;
-    if (pubPct <= 0)        heroSub = "Höj andelen offentlig laddning för att se din besparing.";
+    if (pubPct <= 0)        heroSub = "Dra upp andelen publik laddning så ser du vad du kan spara.";
     else if (pubPct >= 100) heroSub = "om du flyttar all din publika laddning hem";
     else                    heroSub = "om du flyttar " + pubPct + " % av din publika laddning hem";
     $("ampyEvHeroAnnualSub").textContent = heroSub;
 
-    /* SECONDARY 10-year figure — series depends on the toggle.
+    /* SECONDARY 10-year figure — always the net series (investment counted).
        For offert-only boxes there is no net series; fall back to pure savings so
        the tile never shows NaN. */
-    var tenYear = (withInvest && !r.offert) ? r.cumulativeNetN : r.cumulativeSavingsN;
+    var tenYear = !r.offert ? r.cumulativeNetN : r.cumulativeSavingsN;
     animateNumber("evCumulative", tenYear, fmtKr, "ampyEvCumulativeValue");
-    if (withInvest && !r.offert) {
+    if (!r.offert) {
       $("ampyEvCumulativeLabel").textContent = "Sparar på " + horizon + " år";
       $("ampyEvHero10Sub").textContent = "laddboxen betald, Grön Teknik inräknad";
     } else {
@@ -791,8 +842,9 @@
       $("ampyEvHero10Sub").textContent = "Din besparing på laddningen – oavsett vad laddboxen kostar.";
     }
 
-    /* Investment-only tile. Offert-only boxes have no price → "Begär offert"
-       for "Att betala", and no gross/Grön-Teknik sub line. */
+    /* "Att betala" tile. Offert-only boxes have no price → "Begär offert".
+       D2: priced boxes show ONE clean net price line — the gross − Grön Teknik
+       breakdown is gone (the methodology explains the 48,5% statutory deduction). */
     if (r.offert) {
       /* No count-up for a non-numeric value; clear the stored prev so a later
          switch back to a priced box animates from its real value, not a string. */
@@ -801,7 +853,7 @@
       $("ampyEvNetPaySub").textContent = "Pris tas fram i offert för din anläggning.";
     } else {
       animateNumber("evNetPay", r.netCost, fmtKr, "ampyEvNetPay");
-      $("ampyEvNetPaySub").textContent = "Pris inkl. installation & moms " + fmtKr(r.grossPrice) + " kr − Grön Teknik " + fmtKr(r.gronTeknik) + " kr";
+      $("ampyEvNetPaySub").textContent = "Pris inkl. installation, Grön Teknik & moms";
     }
 
     renderSavingsBreakdown(r);
@@ -818,41 +870,49 @@
   }
 
   /* =====================================================================
-     RENDER: MONTHLY COST COMPARISON  (publik vs hemma, kr/mån)
-     Replaces the payback chart. Two on-brand bars whose widths are proportional
-     to the monthly cost, plus a "Du sparar ≈ X kr/mån" delta. The three numbers
-     count up. Reconciles to the annual hero (× 12). Renders for offert-only
-     boxes too (segment-agnostic — no box price needed). The "Att betala"/payback
-     framing lives elsewhere; this panel is purely the laddning cost.
+     RENDER: MONTHLY COST COMPARISON  (publik vs hemma vs hemma-schemalagd, kr/mån)
+     Replaces the payback chart. THREE on-brand bars whose widths are proportional
+     to the monthly cost, plus a "Du sparar ≈ X kr/mån" delta. The numbers count
+     up. The first two reconcile to the annual hero (× 12); the third
+     ("Hemma, schemalagd", owner decision D1) is an additive, visually-subordinate
+     bar showing the optimised-rate cost — it does NOT change the headline saving.
+     Renders for offert-only boxes too (segment-agnostic — no box price needed).
      ===================================================================== */
   function renderMonthlyComparison(r) {
     var block = $("ampyEvMonthly");
     if (!block) return;
 
     /* Empty / no-saving state: clear the numbers and the bars. publicKwh can be 0
-       (0 % public charging) → both costs 0, saving 0; still a valid, honest view. */
+       (0 % public charging) → all costs 0, saving 0; still a valid, honest view. */
     if (!r || r.unavailable || !isFinite(r.monthlySaving)) {
-      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlySaving"].forEach(function(id){
+      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlyHomeOpt","ampyEvMonthlySaving"].forEach(function(id){
         var el = $(id); if (el) el.textContent = "—";
       });
-      block.style.setProperty("--monthly-public-frac", "0");
-      block.style.setProperty("--monthly-home-frac",   "0");
+      block.style.setProperty("--monthly-public-frac",  "0");
+      block.style.setProperty("--monthly-home-frac",    "0");
+      block.style.setProperty("--monthly-homeopt-frac", "0");
       return;
     }
 
-    var pub  = r.monthlyPublicCost;
-    var home = r.monthlyHomeCost;
+    var pub     = r.monthlyPublicCost;
+    var home    = r.monthlyHomeCost;
+    var homeOpt = r.monthlyHomeOptCost;
 
-    /* Bar widths ∝ cost, scaled so the larger bar (public, since publicRate >
-       homeRate) fills the track. Guard the divide-by-zero at 0 % public. */
-    var maxCost   = Math.max(pub, home, 0);
-    var pubFrac   = maxCost > 0 ? pub  / maxCost : 0;
-    var homeFrac  = maxCost > 0 ? home / maxCost : 0;
-    block.style.setProperty("--monthly-public-frac", String(pubFrac));
-    block.style.setProperty("--monthly-home-frac",   String(homeFrac));
+    /* Bar widths ∝ cost, scaled so the largest bar (public, since publicRate >
+       homeRate > homeRateOpt) fills the track. Guard the divide-by-zero at 0 %
+       public. The optimised bar shares the same maxCost so the staircase reads
+       public > home > schemalagd. */
+    var maxCost     = Math.max(pub, home, homeOpt, 0);
+    var pubFrac     = maxCost > 0 ? pub     / maxCost : 0;
+    var homeFrac    = maxCost > 0 ? home    / maxCost : 0;
+    var homeOptFrac = maxCost > 0 ? homeOpt / maxCost : 0;
+    block.style.setProperty("--monthly-public-frac",  String(pubFrac));
+    block.style.setProperty("--monthly-home-frac",    String(homeFrac));
+    block.style.setProperty("--monthly-homeopt-frac", String(homeOptFrac));
 
     animateNumber("evMonthlyPublic",  pub,             fmtKr, "ampyEvMonthlyPublic");
     animateNumber("evMonthlyHome",    home,            fmtKr, "ampyEvMonthlyHome");
+    animateNumber("evMonthlyHomeOpt", homeOpt,         fmtKr, "ampyEvMonthlyHomeOpt");
     animateNumber("evMonthlySaving",  r.monthlySaving, fmtKr, "ampyEvMonthlySaving");
   }
 
@@ -866,21 +926,24 @@
     var cap1      = RATES.gronTeknikCapPerApplicant.toLocaleString("sv-SE");
     var uncertPct = Math.round(RATES.uncertaintyBand * 100);
     var items = [
-      { h: "1. Energiåtgång",
-        c: "(körsträcka ÷ 10) × kWh per 10 km ÷ " + (RATES.chargerEfficiencyPct * 100).toFixed(0) + "% laddningseffektivitet",
-        p: "Bilens WLTP-förbrukning multipliceras med din körsträcka. 10% förlust i laddkedjan ingår." },
-      { h: "2. Offentlig laddkostnad",
-        c: "offentlig andel × energi × offentlig taxa (AC " + fmtRate(RATES.publicAcRateSekPerKwh) + " kr/kWh · DC " + fmtRate(RATES.publicDcRateSekPerKwh) + " kr/kWh)",
-        p: "Typpriser 2025 för AC- respektive DC-laddning i Sverige." },
-      { h: "3. Hemmaladdningskostnad",
-        c: "offentlig andel × energi × hemtaxa (varierar SE1–SE4)",
-        p: "Genomsnittlig total el-kostnad hemma inklusive spotpris, nätavgift och skatt per område." },
+      { h: "1. Så mycket energi din bil drar",
+        c: "körsträcka ÷ 10 × förbrukning per 10 km ÷ " + (RATES.chargerEfficiencyPct * 100).toFixed(0) + " % laddningseffektivitet",
+        p: "Vi utgår från bilens WLTP-förbrukning och din körsträcka. Cirka 10 % försvinner som förlust i laddkabel och box, så vi räknar med det." },
+      { h: "2. Vad publik laddning kostar dig",
+        c: "offentlig andel × energi × publik taxa (AC " + fmtRate(RATES.publicAcRateSekPerKwh) + " kr/kWh · DC " + fmtRate(RATES.publicDcRateSekPerKwh) + " kr/kWh)",
+        p: "Typiska svenska priser 2025 för publik AC- respektive DC-laddning. Du väljer själv vilken typ du oftast använder." },
+      { h: "3. Vad samma laddning kostar hemma",
+        c: "offentlig andel × energi × hemtaxa (1,45–2,10 kr/kWh, SE1–SE4)",
+        p: "Din totala hemma-kostnad per kWh — spotpris, nätavgift och skatt — i snitt för ditt elprisområde." },
       { h: "4. Grön Teknik-avdraget",
-        c: gronPct + "% av totalpriset, max " + cap1 + " kr/sökande/år (upp till " + RATES.maxApplicants + " sökande)",
-        p: "50% av arbete + material × Skatteverkets 97% schablon ≈ " + gronPct + "% av totalpriset; kalkylen drar " + gronPct + "%. Kräver att du äger bostaden, har tillräcklig skatt att dra av mot, att installatören har F-skatt, och att laddpunkten har uttag enligt EN 62196-2/-3." },
-      { h: "5. Osäkerhetsspann",
-        c: "± " + uncertPct + "% på den årliga besparingen",
-        p: "Elpriser och körvanor varierar. Spannet visar realistisk under- och övergräns." },
+        c: gronPct + " % av priset, max " + cap1 + " kr/sökande/år (upp till " + RATES.maxApplicants + " sökande)",
+        p: "Avdraget är 50 % av arbete och material. Med Skatteverkets schablon på 97 % blir det cirka " + gronPct + " % av totalpriset, vilket vi drar av direkt. Kräver att du äger bostaden, har skatt att dra mot, att installatören har F-skatt och att laddpunkten har uttag enligt EN 62196-2/-3." },
+      { h: "5. Varför vi visar ett spann",
+        c: "± " + uncertPct + " % på den årliga besparingen",
+        p: "Elpriser och körvanor svänger. Spannet visar en realistisk lägsta- och högstanivå — din verkliga besparing landar troligen däremellan." },
+      { h: "6. Schemalagd laddning",
+        c: "hemtaxa × ca 20–30 % lägre (varierar SE1–SE4)",
+        p: "En modern laddbox flyttar laddningen automatiskt till de billigaste timmarna. Vi räknar med en sänkning på cirka 20–30 % av hemmakostnaden — inte hela spotskillnaden (30–60 %), eftersom den inte gäller alla timmar eller alla elavtal." },
     ];
     host.innerHTML = items.map(function (it) {
       return '<div class="ampy-calc__methodology-item"><h3>' + it.h + "</h3><code>" + it.c + "</code><p>" + it.p + "</p></div>";
@@ -896,8 +959,6 @@
 
   function renderAll() {
     updatePublicTypeToggle();
-    updateInvestmentToggle();
-    renderApplicants();
     renderSingleResult();
     /* Funnel: every user-driven recalculation is an input_change. Guarded so
        the initial boot render is excluded. */
@@ -917,6 +978,138 @@
     state.chargerId = id;
     renderSelector({ suffix:"A", items:CHARGERS, selectedId:state.chargerId, idPrefix:"ampyEvCharger", iconFn:chargerIconSvg, onSelect:onSelectCharger });
     renderAll();
+  }
+
+  /* =====================================================================
+     TOOLTIP POPOVERS (point 13)
+     Replaces the pure-CSS ::after data-tip slab. One reusable popover element
+     per "i" (built from its data-tip), positioned in viewport coords so it can
+     never clip a container edge. Desktop: open on hover/focus, close on
+     leave/blur/Escape. Touch/all: toggle on click, close on outside-tap,
+     Escape, scroll, or re-tap. One open at a time.
+     ===================================================================== */
+  var _tips = [];                 /* { btn, pop } pairs */
+  var _openTip = null;            /* the currently-open pop element, or null */
+
+  function positionPopover(btn, pop) {
+    /* Make it measurable without flashing: render hidden-but-laid-out. */
+    pop.style.visibility = "hidden";
+    pop.setAttribute("data-open", "");
+    pop.style.left = "0px"; pop.style.top = "0px";
+    var GUTTER = 12;
+    var b  = btn.getBoundingClientRect();
+    var pr = pop.getBoundingClientRect();
+    var vw = document.documentElement.clientWidth;
+    var vh = document.documentElement.clientHeight;
+
+    /* Horizontal: centre on the "i", then clamp into a 12px viewport gutter. */
+    var cx   = b.left + b.width / 2;
+    var left = cx - pr.width / 2;
+    left = Math.max(GUTTER, Math.min(left, vw - pr.width - GUTTER));
+
+    /* Vertical: prefer ABOVE; flip BELOW if it would clip the top. */
+    var placement = "top";
+    var top = b.top - pr.height - 10;
+    if (top < GUTTER) { placement = "bottom"; top = b.bottom + 10; }
+    /* if below would clip the bottom and above has more room, go back above */
+    if (placement === "bottom" && top + pr.height > vh - GUTTER && (b.top - pr.height - 10) > GUTTER) {
+      placement = "top"; top = b.top - pr.height - 10;
+    }
+
+    pop.style.left = Math.round(left) + "px";
+    pop.style.top  = Math.round(top) + "px";
+    pop.setAttribute("data-placement", placement);
+    /* Caret tracks the "i" horizontally, clamped within the bubble. */
+    var caretX = cx - left;
+    caretX = Math.max(12, Math.min(caretX, pr.width - 12));
+    pop.style.setProperty("--caret-x", Math.round(caretX) + "px");
+    pop.style.visibility = "";
+  }
+
+  function openTip(btn, pop) {
+    closeAllTips();
+    closeAllSelectors();          /* one-open-at-a-time across the whole UI */
+    positionPopover(btn, pop);
+    pop.setAttribute("data-open", "");
+    btn.setAttribute("aria-expanded", "true");
+    _openTip = pop;
+  }
+
+  function closeTip(btn, pop) {
+    pop.removeAttribute("data-open");
+    btn.setAttribute("aria-expanded", "false");
+    if (_openTip === pop) _openTip = null;
+  }
+
+  function closeAllTips() {
+    _tips.forEach(function (t) { closeTip(t.btn, t.pop); });
+  }
+
+  function setupTooltips() {
+    /* Append to <body>, NOT .ampy-calc-outer: that wrapper has
+       container-type:inline-size, which establishes layout containment and would
+       make a position:fixed child position relative to the WRAPPER instead of the
+       viewport — breaking the getBoundingClientRect() math. On <body> the popover
+       is truly viewport-positioned. The CSS is scoped under .ampy-calc__popover
+       (a plain class), so it still styles correctly outside .ampy-calc. */
+    var host = document.body;
+    var tipButtons = document.querySelectorAll(".ampy-calc__tip");
+    var n = 0;
+    tipButtons.forEach(function (btn) {
+      var text = btn.getAttribute("data-tip");
+      if (!text) return;
+      n++;
+      var id = "ampyEvTip" + n;
+      var pop = document.createElement("div");
+      pop.className = "ampy-calc__popover";
+      pop.id = id;
+      pop.setAttribute("role", "tooltip");
+      pop.textContent = text;
+      host.appendChild(pop);
+
+      btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("aria-controls", id);
+      /* a11y: the tip text is associated with its control for SR users without
+         polluting the field's accessible NAME (which uses aria-labelledby). */
+      btn.setAttribute("aria-describedby", id);
+      /* data-tip no longer drives any CSS; keep it as the content source. */
+
+      _tips.push({ btn: btn, pop: pop });
+
+      var isOpen = function () { return pop.hasAttribute("data-open"); };
+      /* Track the pointer type of the gesture that's about to focus the button,
+         so a TOUCH tap (which fires focus→click) doesn't auto-open via focus and
+         then immediately close via the click toggle. Mouse/keyboard still get
+         the hover/focus-to-open nicety. */
+      var lastPointerWasTouch = false;
+      btn.addEventListener("pointerdown", function (e) {
+        lastPointerWasTouch = (e.pointerType === "touch" || e.pointerType === "pen");
+      });
+
+      /* Toggle on click (the canonical action — works for touch AND mouse). */
+      btn.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        if (isOpen()) closeTip(btn, pop); else openTip(btn, pop);
+      });
+      /* Desktop niceties: hover opens; mouse-leave closes. */
+      btn.addEventListener("mouseenter", function () { if (!lastPointerWasTouch) openTip(btn, pop); });
+      btn.addEventListener("mouseleave", function () { if (!lastPointerWasTouch) closeTip(btn, pop); });
+      /* Keyboard focus (Tab) opens for SR/keyboard users; a touch-induced focus
+         is suppressed (the tap's click handles it). blur closes. */
+      btn.addEventListener("focus", function () { if (!lastPointerWasTouch) openTip(btn, pop); });
+      btn.addEventListener("blur",  function () { lastPointerWasTouch = false; closeTip(btn, pop); });
+    });
+
+    /* Outside-click / Escape / scroll close (mirrors the selector discipline). */
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".ampy-calc__tip, .ampy-calc__popover")) closeAllTips();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && _openTip) closeAllTips();
+    });
+    /* A detached popover floating after a scroll looks broken — close on scroll. */
+    window.addEventListener("scroll", function () { if (_openTip) closeAllTips(); }, true);
+    window.addEventListener("resize", function () { if (_openTip) closeAllTips(); });
   }
 
   function bindUI() {
@@ -943,22 +1136,8 @@
     /* Public type toggle */
     wireToggle("ampyEvPublicType", function (v) { state.publicChargingType = v; });
 
-    /* ROI investment toggle — two-pill segmented control (native <button>s,
-       keyboard-operable). data-value "with"/"without" → includeInvestment. */
-    wireToggle("ampyEvInvestmentToggle", function (v) { state.includeInvestment = (v === "with"); });
-
-    /* Applicants stepper */
-    $("ampyEvApplicantsDec").addEventListener("click", function () {
-      if (state.numTaxApplicants > 1) { state.numTaxApplicants--; renderAll(); }
-    });
-    $("ampyEvApplicantsInc").addEventListener("click", function () {
-      if (state.numTaxApplicants < RATES.maxApplicants) { state.numTaxApplicants++; renderAll(); }
-    });
-
-    /* Tooltip focus-click */
-    document.querySelectorAll(".ampy-calc__tip").forEach(function (tip) {
-      tip.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); tip.focus(); });
-    });
+    /* Tooltip popovers (point 13) — tap-dismissible, edge-aware, one open. */
+    setupTooltips();
 
     /* Lead form open */
     $("ampyEvCtaQuote").addEventListener("click", function () {
@@ -970,7 +1149,9 @@
       if (_formOpenedAt == null) _formOpenedAt = Date.now();
       emitEvent("cta_quote_click", { formAlreadyOpen: wasOpen });
       $("ampyEvLeadName").focus();
-      form.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "nearest" });
+      /* 3-5: land the form near the top so the Namn field is fully visible
+         (block:"nearest" could leave it half-off on mobile). */
+      form.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
     });
 
     $("ampyEvLeadForm").addEventListener("submit",  function (e) { e.preventDefault(); submitLeadForm(); });
@@ -996,8 +1177,7 @@
       annualSaving:       rnd(r.annualSaving),
       paybackYears:       r.paybackYears,
       cumulative10:       rnd(r.cumulativeNetN),
-      cumulativeSavings10:rnd(r.cumulativeSavingsN),
-      includeInvestment:  state.includeInvestment
+      cumulativeSavings10:rnd(r.cumulativeSavingsN)
     };
     /* Anti-bot signals for server-side rejection:
        - honeypot: must be empty; non-empty ⇒ bot.
@@ -1210,6 +1390,11 @@
       currentValue:state.annualKm,
       formatter:   fmtKm,
       tickFormatter: fmtKmShort,   /* abbreviate "5 000"→"5k" so ticks stay legible ≤390px */
+      /* Point 12: label a clean evenly-spaced subset of the ACTUAL 8 steps
+         (5/10/15/20/25/30/40/50k) → 5k·20k·30k·50k (idx 0/3/5/7, evenly
+         distributed). The other 4 stops render as tick marks. All 8 stay
+         draggable/snappable/keyboard-reachable. */
+      visibleTickValues: [5000, 20000, 30000, 50000],
       unit:        "km/år",
       labelId:     "ampyEvKmLabel",
       onChangeFn:  function (v) { state.annualKm = v; renderAll(); }
