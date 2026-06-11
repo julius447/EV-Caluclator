@@ -1197,7 +1197,7 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
                    The headline annual saving is UNCHANGED — this is additive upside. -->
               <div class="ampy-calc__monthly-col ampy-calc__monthly-col--homeopt">
                 <span class="ampy-calc__monthly-col-label">
-                  Hemma, schemalagd
+                  Schemalagd hemma laddning
                   <button type="button" class="ampy-calc__tip" aria-label="Mer info"
                           data-tip="Din laddbox laddar när elen är som billigast — spotpriset är 30–60 % lägre på lågpristimmar. Det sänker din hemmakostnad ytterligare några procent. Beror på elavtal och elområde.">i</button>
                 </span>
@@ -1230,7 +1230,7 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             <button type="button"
                     class="ampy-calc__btn ampy-calc__btn--primary ampy-calc__btn--lg ampy-calc__btn--block"
                     id="ampyEvCtaQuote">
-              Få en laddbox-offert <?= ampy_ev_arrow_icon() ?>
+              Få en laddbox offert<?= ampy_ev_arrow_icon() ?>
             </button>
 
             <form class="ampy-calc__lead-form" id="ampyEvLeadForm" novalidate>

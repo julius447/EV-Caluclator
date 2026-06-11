@@ -970,7 +970,8 @@
    run spanning "Läs mer om {box}"; the arrow (a flex sibling) stays clean. */
 .ampy-calc__btn-link, .ampy-calc__btn-link:hover { text-decoration: none; }
 .ampy-calc__btn-link-label { display: inline; text-decoration: none; text-underline-offset: 0.25em; }
-.ampy-calc__btn-link:hover .ampy-calc__btn-link-label,
+/* no underline on hover (owner request) — the color change above is the hover
+   affordance; keyboard focus keeps an underline for accessibility. */
 .ampy-calc__btn-link:focus-visible .ampy-calc__btn-link-label { text-decoration: underline; }
 /* 3-5: promote to a bordered secondary button on the dark surface so the two
    CTAs read as a deliberate primary/secondary pair. */
