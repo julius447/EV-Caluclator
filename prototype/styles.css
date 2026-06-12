@@ -43,11 +43,6 @@
   --state-success:     rgb(57, 194, 129);
   --state-error:       rgb(214, 76, 76);
   --state-warning:     rgb(240, 175, 56);
-  /* R13: muted teal for the "schemalagd" (smart-charging) third bar + its
-     breakdown sub-row. Deliberately desaturated and blue-shifted away from the
-     solid home green (--state-success) so the optimised figure reads as a
-     subordinate "bonus" layer, not a second equal home number. */
-  --schemalagd-teal:   rgb(92, 184, 178);
   --border-default:    rgba(15, 18, 60, 0.12);
   --border-focus:      rgb(0, 125, 107); /* a11y: matches darkened --action-primary */
 
@@ -62,6 +57,16 @@
   --on-surface-border:         rgba(255, 255, 255, 0.14);
   --on-surface-border-strong:  rgba(255, 255, 255, 0.28);
   --on-surface-subtle-bg:      rgba(255, 255, 255, 0.06);
+
+  --chart-stream-1: rgb(0, 169, 145);
+  --chart-stream-2: rgb(57, 194, 129);
+  --chart-stream-3: rgb(122, 208, 198);
+  --chart-stream-4: rgb(160, 184, 196);
+
+  --chart-line-loss:    rgb(240, 175, 56);
+  --chart-line-profit:  rgb(0, 169, 145);
+  --chart-zone-loss:    rgba(240, 175, 56, 0.18);
+  --chart-zone-profit:  rgba(0, 169, 145, 0.16);
 
   --spacing-xs:  0.5rem;
   --spacing-sm:  0.75rem;
@@ -127,12 +132,15 @@
 .ampy-calc a { color: var(--action-primary); text-decoration: none; }
 .ampy-calc a:hover { text-decoration: underline; }
 
-/* ── Typography ───────────────────────────────────────────────────────────
-   S3: t-display / t-3xl / t-heading / t-body / t-caption removed — 0 refs in
-   index.html + engine.js (only t-2xl/t-subheading/t-small/t-mono are used). */
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.ampy-calc__t-display    { font-family: var(--font-heading); font-size: var(--fs-4xl); line-height: 1.0;  font-weight: 700; letter-spacing: -0.02em; }
+.ampy-calc__t-3xl        { font-family: var(--font-heading); font-size: var(--fs-3xl); line-height: 1.1;  font-weight: 700; letter-spacing: -0.02em; }
 .ampy-calc__t-2xl        { font-family: var(--font-heading); font-size: var(--fs-2xl); line-height: 1.2;  font-weight: 700; letter-spacing: -0.015em; }
+.ampy-calc__t-heading    { font-family: var(--font-heading); font-size: var(--fs-xl);  line-height: 1.3;  font-weight: 600; letter-spacing: -0.01em; }
 .ampy-calc__t-subheading { font-family: var(--font-heading); font-size: var(--fs-lg);  line-height: 1.4;  font-weight: 500; }
+.ampy-calc__t-body       { font-family: var(--font-body);    font-size: var(--fs-md);  line-height: 1.5;  font-weight: 400; }
 .ampy-calc__t-small      { font-family: var(--font-body);    font-size: var(--fs-sm);  line-height: 1.5;  font-weight: 400; }
+.ampy-calc__t-caption    { font-family: var(--font-body);    font-size: var(--fs-xs);  line-height: 1.5;  font-weight: 400; }
 .ampy-calc__t-mono       { font-family: var(--font-mono); font-feature-settings: "tnum" 1, "lnum" 1; }
 
 /* ── Container ──────────────────────────────────────────────────────────── */
@@ -181,6 +189,7 @@
     radial-gradient(120% 60% at 90% -10%, rgba(0, 169, 145, 0.28), transparent 60%),
     radial-gradient(80% 50% at -10% 110%, rgba(57, 194, 129, 0.16), transparent 60%);
 }
+.ampy-calc__card--surface .ampy-calc__t-caption,
 .ampy-calc__card--surface .ampy-calc__field-label,
 .ampy-calc__card--surface .ampy-calc__t-small { color: var(--on-surface-text-muted); }
 
@@ -194,6 +203,8 @@
   font-family: var(--font-heading); font-size: var(--fs-sm);
   font-weight: 600; color: var(--text-primary); letter-spacing: 0.01em;
 }
+.ampy-calc__field-hint { font-size: var(--fs-xs); color: var(--text-secondary); }
+.ampy-calc__field-divider { height: 1px; background: var(--border-default); border: 0; margin: var(--spacing-xs) 0; }
 
 /* ── Battery selector ───────────────────────────────────────────────────── */
 .ampy-calc__selector { position: relative; }
@@ -380,6 +391,14 @@
   }
 }
 
+.ampy-calc__locked-value {
+  display: inline-flex; align-items: center; gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-subtle);
+  border-radius: var(--radius-md); font-family: var(--font-mono);
+  font-weight: 600; color: var(--text-primary);
+}
+.ampy-calc__locked-value svg { color: var(--text-secondary); }
+
 /* ── Segmented control ──────────────────────────────────────────────────── */
 .ampy-calc__segmented {
   display: grid; grid-template-columns: repeat(4, 1fr);
@@ -428,7 +447,9 @@
 .ampy-calc__toggle-option[aria-pressed="true"] {
   background: var(--action-primary); color: var(--text-inverse); box-shadow: var(--shadow-sm);
 }
-/* a11y / touch target (WCAG 2.5.5): toggle pills (AC/DC) ≥44px tall on touch. */
+.ampy-calc__toggle--disabled .ampy-calc__toggle-option { opacity: 0.5; cursor: not-allowed; }
+/* a11y / touch target (WCAG 2.5.5): toggle pills (AC/DC + the redesigned ROI
+   "Med/Utan investering" segmented control) ≥44px tall on touch. */
 @media (pointer: coarse) {
   .ampy-calc__toggle-option {
     min-height: 4.4rem; display: inline-flex; align-items: center; justify-content: center;
@@ -449,8 +470,13 @@
 .ampy-calc__btn:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(0, 125, 107, 0.35); }
 .ampy-calc__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .ampy-calc__btn--primary { background: var(--action-primary); color: var(--text-inverse); box-shadow: var(--shadow-md); }
-/* S4: btn--secondary / --ghost / --outline (and their --surface overrides)
-   removed — 0 refs in index.html + engine.js (DS-scaffold leftovers). */
+.ampy-calc__btn--secondary { background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-default); }
+.ampy-calc__card--surface .ampy-calc__btn--secondary {
+  background: var(--on-surface-subtle-bg); color: var(--text-inverse); border-color: var(--on-surface-border-strong);
+}
+.ampy-calc__btn--ghost { background: transparent; color: var(--text-primary); }
+.ampy-calc__card--surface .ampy-calc__btn--ghost { color: var(--text-inverse); }
+.ampy-calc__btn--outline { background: transparent; color: var(--action-primary); border: 1.5px solid var(--action-primary); }
 .ampy-calc__btn--block { width: 100%; }
 .ampy-calc__btn--lg { padding: var(--spacing-md) var(--spacing-xl); min-height: 5.6rem; font-size: var(--fs-md); }
 
@@ -497,6 +523,49 @@
 .ampy-calc__input-error { color: var(--state-error); font-size: var(--fs-xs); margin-top: var(--spacing-xs); }
 
 /* ── Results panel ──────────────────────────────────────────────────────── */
+.ampy-calc__hero { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.ampy-calc__hero-label {
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text-muted); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ampy-calc__hero-value {
+  font-family: var(--font-heading); font-size: var(--fs-3xl); line-height: 1.0;
+  font-weight: 700; color: var(--text-inverse); letter-spacing: -0.02em;
+  display: inline-flex; align-items: baseline; gap: 0.6rem;
+}
+.ampy-calc__hero-value sup { font-size: 0.4em; font-weight: 600; color: var(--on-surface-text-muted); margin-left: 0.2rem; align-self: flex-start; }
+.ampy-calc__hero-unit { font-size: var(--fs-xl); color: var(--on-surface-text-muted); font-weight: 500; }
+.ampy-calc__hero-sub  { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+.ampy-calc__return { display: flex; flex-direction: column; gap: var(--spacing-xs); padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border); }
+.ampy-calc__return-value {
+  font-family: var(--font-heading); font-size: var(--fs-2xl); line-height: 1.2;
+  font-weight: 700; color: var(--state-success); display: inline-flex; align-items: baseline; gap: 0.6rem;
+}
+.ampy-calc__return-value .ampy-calc__hero-unit { color: var(--on-surface-text-muted); }
+.ampy-calc__return-range { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+/* ── Streams ────────────────────────────────────────────────────────────── */
+.ampy-calc__streams { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.ampy-calc__streams-bar {
+  width: 100%; height: 2.4rem; border-radius: var(--radius-full);
+  background: var(--on-surface-subtle-bg); overflow: hidden; display: flex;
+}
+.ampy-calc__streams-segment { height: 100%; transition: width var(--motion-normal) var(--easing); }
+.ampy-calc__streams-legend { display: grid; grid-template-columns: 1fr; gap: var(--spacing-xs); }
+.ampy-calc__stream-row {
+  display: grid; grid-template-columns: 1.2rem 1fr auto;
+  align-items: baseline; gap: var(--spacing-sm); padding: 0.4rem 0;
+}
+.ampy-calc__stream-dot { width: 1.2rem; height: 1.2rem; border-radius: var(--radius-full); align-self: center; }
+.ampy-calc__stream-name { color: var(--on-surface-text); font-size: var(--fs-sm); font-weight: 500; }
+.ampy-calc__stream-name small { display: block; color: var(--on-surface-text-faint); font-size: var(--fs-xs); font-weight: 400; }
+.ampy-calc__stream-value {
+  font-family: var(--font-mono); color: var(--on-surface-text); font-weight: 600;
+  font-size: var(--fs-sm); text-align: right; white-space: nowrap;
+}
+.ampy-calc__stream-pct { color: var(--on-surface-text-faint); font-weight: 400; font-size: var(--fs-xs); margin-left: 0.6rem; }
+.ampy-calc__stream-row--zero { opacity: 0.55; }
 
 /* ── Monthly cost comparison (publik vs hemma) ──────────────────────────────
    Two on-brand bars whose widths are proportional to the monthly cost (set via
@@ -522,17 +591,9 @@
 }
 .ampy-calc__monthly-col-value--public { color: var(--state-warning); }
 .ampy-calc__monthly-col-value--home   { color: var(--state-success); }
-/* Scheduled / optimised home value — subordinate to the solid home value.
-   R13: step DOWN a full token (--fs-md → --fs-sm) and shift the colour from the
-   solid home green to a muted teal (--schemalagd-teal), so 595 vs 423 no longer
-   read as two equal home figures — the hierarchy reads public > home > schemalagd. */
-.ampy-calc__monthly-col-value--homeopt { color: var(--schemalagd-teal); font-size: var(--fs-sm); }
-/* R13: the "(med smart styrning)" qualifier next to the third-bar label — small,
-   muted, lower-case so it reads as an optional-extra note, not a competing label. */
-.ampy-calc__monthly-col-qualifier {
-  font-family: var(--font-body); font-size: var(--fs-xs); font-weight: 500;
-  color: var(--on-surface-text-faint); text-transform: none; letter-spacing: 0;
-}
+/* Scheduled / optimised home value — subordinate to the solid home value:
+   slightly smaller and softer so the hierarchy reads public > home > schemalagd. */
+.ampy-calc__monthly-col-value--homeopt { color: var(--state-success); font-size: var(--fs-md); opacity: 0.85; }
 .ampy-calc__monthly-col-unit { font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
 /* Cost bar: a rounded track whose fill width is ∝ the monthly cost. The track
    is the ::after block; the ::before is the fill, absolutely positioned over it
@@ -573,16 +634,13 @@
 .ampy-calc__monthly-col--homeopt {
   --bar-frac: var(--monthly-homeopt-frac, 0);
 }
-/* R13: dashed fill shifted from the solid home green to the muted teal
-   (--schemalagd-teal ≈ rgb(92,184,178)) so the third bar is distinct from the
-   solid home bar and pairs with its now-teal value. */
 .ampy-calc__monthly-col--homeopt::before {
   background: repeating-linear-gradient(
     45deg,
-    rgba(92, 184, 178, 0.60),
-    rgba(92, 184, 178, 0.60) 4px,
-    rgba(92, 184, 178, 0.30) 4px,
-    rgba(92, 184, 178, 0.30) 8px
+    rgba(57, 194, 129, 0.55),
+    rgba(57, 194, 129, 0.55) 4px,
+    rgba(57, 194, 129, 0.28) 4px,
+    rgba(57, 194, 129, 0.28) 8px
   );
 }
 .ampy-calc__monthly-delta {
@@ -602,6 +660,29 @@
   display: inline-flex; align-items: baseline; gap: 0.4rem; white-space: nowrap;
 }
 .ampy-calc__monthly-delta-unit { font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
+
+/* ── Cumulative callout ─────────────────────────────────────────────────── */
+.ampy-calc__cumulative {
+  display: flex; align-items: baseline; gap: var(--spacing-sm); flex-wrap: wrap;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: linear-gradient(90deg, rgba(0,169,145,0.18), rgba(57,194,129,0.10));
+  border: 1px solid var(--on-surface-border-strong); border-radius: var(--radius-md);
+}
+.ampy-calc__cumulative-label  { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+.ampy-calc__cumulative-value  { font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 700; color: var(--text-inverse); line-height: 1.3; }
+.ampy-calc__cumulative-suffix { color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+/* ── Spec table ─────────────────────────────────────────────────────────── */
+.ampy-calc__spec-table { width: 100%; border-collapse: collapse; }
+.ampy-calc__spec-table th,
+.ampy-calc__spec-table td {
+  padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--on-surface-border);
+  font-size: var(--fs-sm); text-align: left; vertical-align: top;
+}
+.ampy-calc__spec-table th { color: var(--on-surface-text-muted); font-weight: 500; }
+.ampy-calc__spec-table td { color: var(--on-surface-text); font-family: var(--font-mono); font-weight: 600; text-align: right; }
+.ampy-calc__spec-table tr:last-child th,
+.ampy-calc__spec-table tr:last-child td { border-bottom: 0; }
 
 /* ── Info note ──────────────────────────────────────────────────────────── */
 .ampy-calc__info-note {
@@ -691,6 +772,21 @@
   .ampy-calc__consent-row { min-height: 4.4rem; align-items: center; }
 }
 
+/* ── Trust strip ────────────────────────────────────────────────────────── */
+.ampy-calc__trust-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: var(--spacing-md); padding: var(--spacing-lg);
+  background: var(--bg-subtle); border-radius: var(--radius-lg);
+}
+.ampy-calc__trust-block { display: flex; gap: var(--spacing-md); align-items: flex-start; padding: var(--spacing-sm); }
+.ampy-calc__trust-block-icon {
+  width: 4rem; height: 4rem; border-radius: var(--radius-md);
+  background: var(--bg-primary); color: var(--action-primary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ampy-calc__trust-block-text  { display: flex; flex-direction: column; gap: 0.2rem; }
+.ampy-calc__trust-block-title { font-family: var(--font-heading); font-weight: 600; color: var(--text-primary); font-size: var(--fs-sm); }
+.ampy-calc__trust-block-sub   { color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.5; }
 
 /* ── Methodology ────────────────────────────────────────────────────────── */
 .ampy-calc__methodology {
@@ -746,14 +842,29 @@
   font-size: var(--fs-xl); line-height: 1.3; letter-spacing: -0.01em;
   display: inline-flex; align-items: baseline; gap: 0.6rem; transition: color var(--motion-fast);
 }
+.ampy-calc__value-prominent.is-snap { animation: ampy-snap-highlight var(--motion-fast) var(--easing); }
+@keyframes ampy-snap-highlight {
+  0%   { color: var(--action-primary); transform: scale(1.04); }
+  100% { color: var(--text-primary);   transform: scale(1); }
+}
 .ampy-calc__value-unit { font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 500; font-family: var(--font-body); }
 .ampy-calc__selector-button--prominent { padding: var(--spacing-md); }
 /* 3-2: selector img 56→48px so the selected button matches its own dropdown
    option image (4.8rem) and the inputs card stops reading top-heavy. */
 .ampy-calc__selector-img--lg { width: 4.8rem; height: 4.8rem; }
 .ampy-calc__selector-name--lg { font-family: var(--font-heading); font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
-/* S4: selector-button--on-surface (5 rules), field--solar and
-   field-hint--conditional removed — 0 refs in index.html + engine.js. */
+.ampy-calc__selector-button--on-surface {
+  background: var(--on-surface-subtle-bg); border-color: var(--on-surface-border-strong); color: var(--text-inverse);
+}
+.ampy-calc__selector-button--on-surface .ampy-calc__selector-name { color: var(--text-inverse); }
+.ampy-calc__selector-button--on-surface .ampy-calc__selector-best { color: var(--on-surface-text-muted); }
+.ampy-calc__selector-button--on-surface .ampy-calc__selector-img  { background: rgba(255,255,255,0.08); color: var(--on-surface-text-muted); }
+.ampy-calc__selector-button--on-surface:hover { border-color: var(--on-surface-text-faint); }
+.ampy-calc__field--solar {
+  background: var(--bg-subtle); padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md); margin: 0;
+}
+.ampy-calc__field-hint--conditional { color: var(--state-warning); font-weight: 500; }
 
 /* ── Tooltip "i" trigger ────────────────────────────────────────────────────
    Point 13: the old pure-CSS ::after bubble (full-width slab on mobile, no
@@ -776,13 +887,6 @@
   background: var(--action-primary); color: var(--text-inverse); border-color: var(--action-primary); outline: none;
 }
 .ampy-calc__tip:focus-visible { box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.3); }
-/* R10 (a11y / contrast): the schemalagd third-bar "i" is the only tip on the
-   dark navy surface, where the light-card colours (dark slate text, near-black
-   border) almost disappear. Give the dark surface a visible variant using the
-   on-surface tokens; hover/active still flip to --action-primary (legible). */
-.ampy-calc__card--surface .ampy-calc__tip {
-  color: var(--on-surface-text-muted); border-color: var(--on-surface-border-strong);
-}
 /* a11y / touch target (WCAG 2.5.5): on touch/coarse pointers the 1.6rem "i"
    is far below 44px. Expand the *clickable* box to 4.4rem with transparent
    padding while a centred ::before keeps the visible circle at 1.6rem, so the
@@ -802,12 +906,6 @@
   .ampy-calc__tip:hover::before, .ampy-calc__tip:focus-visible::before,
   .ampy-calc__tip[aria-expanded="true"]::before {
     background: var(--action-primary); border-color: var(--action-primary);
-  }
-  /* R10: on coarse pointers the visible circle is the ::before; its default
-     dark border vanishes on the navy surface. Use the stronger on-surface border
-     so the schemalagd "i" stays visible on the dark card. */
-  .ampy-calc__card--surface .ampy-calc__tip::before {
-    border-color: var(--on-surface-border-strong);
   }
 }
 
@@ -872,8 +970,7 @@
    run spanning "Läs mer om {box}"; the arrow (a flex sibling) stays clean. */
 .ampy-calc__btn-link, .ampy-calc__btn-link:hover { text-decoration: none; }
 .ampy-calc__btn-link-label { display: inline; text-decoration: none; text-underline-offset: 0.25em; }
-/* no underline on hover (owner request) — the color change above is the hover
-   affordance; keyboard focus keeps an underline for accessibility. */
+.ampy-calc__btn-link:hover .ampy-calc__btn-link-label,
 .ampy-calc__btn-link:focus-visible .ampy-calc__btn-link-label { text-decoration: underline; }
 /* 3-5: promote to a bordered secondary button on the dark surface so the two
    CTAs read as a deliberate primary/secondary pair. */
@@ -901,9 +998,17 @@
 /* 3-3: the hero-sub is now the hero's closing line (range removed) — lift colour
    from muted to full so the owner-loved framing isn't faint. */
 .ampy-calc__hero15-sub  { color: var(--on-surface-text); font-size: var(--fs-sm); }
+.ampy-calc__hero15-mini {
+  display: inline-block; margin-top: 0.2rem; color: var(--on-surface-text-faint);
+  font-size: var(--fs-xs); text-decoration: underline;
+  text-decoration-color: var(--on-surface-border-strong); text-underline-offset: 0.3em;
+  transition: color var(--motion-fast);
+}
+.ampy-calc__hero15-mini:hover { color: var(--on-surface-text-muted); text-decoration-color: currentColor; }
 
 /* Secondary stat tiles. Each tile is a self-contained vertical block so
-   individual tiles can be shown/hidden and the row reflows cleanly. */
+   individual tiles (Att betala / Payback) can be hidden by the ROI toggle
+   and the row reflows cleanly. */
 .ampy-calc__trio {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   column-gap: var(--spacing-lg); row-gap: var(--spacing-md); align-items: start;
@@ -924,11 +1029,6 @@
    --fs-lg, so the squint test reads hero(4xl) → 10-yr+delta(xl) → values(lg). */
 #ampyEvCumulativeTile .ampy-calc__trio-value { font-size: var(--fs-xl); }
 .ampy-calc__trio-unit { font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
-/* S1: when a trio value is TEXT (e.g. offert box → "Begär offert"), the static
-   "kr" unit span would render the orphan "Begär offert kr". The engine adds
-   .ampy-calc__trio-tile--text on the offert branch (removed on the priced
-   branch) to hide the unit; the priced branch restores it. */
-.ampy-calc__trio-tile--text .ampy-calc__trio-unit { display: none; }
 .ampy-calc__trio-sub  { color: var(--on-surface-text-faint); font-size: var(--fs-xs); line-height: 1.5; }
 
 .ampy-calc__internal-divider { height: 1px; background: var(--on-surface-border); border: 0; margin: 0; }
@@ -938,6 +1038,33 @@
 }
 .ampy-calc__evidence { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .ampy-calc__evidence-head { display: flex; align-items: baseline; justify-content: space-between; }
+
+.ampy-calc__streams-disclosure { border-top: 1px solid var(--on-surface-border); margin-top: var(--spacing-xs); padding-top: var(--spacing-xs); }
+.ampy-calc__streams-summary {
+  display: flex; align-items: center; gap: var(--spacing-xs); list-style: none;
+  cursor: pointer; color: var(--on-surface-text-muted); font-size: var(--fs-sm);
+  padding: var(--spacing-xs) 0; font-family: var(--font-body); font-weight: 500;
+}
+.ampy-calc__streams-summary::-webkit-details-marker { display: none; }
+.ampy-calc__streams-summary:hover { color: var(--text-inverse); }
+.ampy-calc__streams-summary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.4); border-radius: var(--radius-sm); }
+.ampy-calc__streams-summary svg { transition: transform var(--motion-fast); }
+.ampy-calc__streams-disclosure[open] .ampy-calc__streams-summary svg { transform: rotate(180deg); }
+.ampy-calc__streams-disclosure[open] .ampy-calc__streams-legend { margin-top: var(--spacing-sm); }
+
+.ampy-calc__spec-disclosure { margin-top: var(--spacing-sm); padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border); }
+.ampy-calc__spec-summary {
+  display: flex; align-items: center; gap: var(--spacing-xs); list-style: none;
+  cursor: pointer; color: var(--on-surface-text-muted); font-size: var(--fs-sm);
+  font-family: var(--font-body); padding: var(--spacing-xs) 0;
+}
+.ampy-calc__spec-summary::-webkit-details-marker { display: none; }
+.ampy-calc__spec-summary:hover { color: var(--text-inverse); }
+.ampy-calc__spec-summary svg { transition: transform var(--motion-fast); margin-left: auto; }
+.ampy-calc__spec-disclosure[open] .ampy-calc__spec-summary svg { transform: rotate(180deg); }
+.ampy-calc__spec-disclosure .ampy-calc__spec-table { margin-top: var(--spacing-sm); }
+.ampy-calc__spec-disclosure .ampy-calc__spec-table th,
+.ampy-calc__spec-disclosure .ampy-calc__spec-table td { font-size: var(--fs-xs); padding: var(--spacing-xs) 0; }
 
 /* ── Staggered reveal animations ────────────────────────────────────────── */
 .ampy-calc__hero15,
@@ -1043,6 +1170,14 @@
 /* Card padding sub-step: 15→10px below 420px reclaims ~10px usable width/side. */
 @container ampy (max-width: 420px) {
   .ampy-calc__card { padding: var(--spacing-md); }
+}
+
+/* Streams legend: 1-col → 2-col */
+@container ampy (min-width: 600px) {
+  .ampy-calc__streams-legend {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm) var(--spacing-lg);
+  }
 }
 
 /* Lead form grid: 1-col → 2-col */

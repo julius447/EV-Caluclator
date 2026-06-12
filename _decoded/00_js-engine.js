@@ -77,20 +77,16 @@
   var prefersReducedMotion =
     window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* R14: thousands group separator. U+202F NARROW no-break space (not the wide
-     U+00A0) — in JetBrains Mono with tnum the regular NBSP renders as a full
-     mono advance, so "20 000" looked loosely spaced; the narrow NBSP tightens
-     the group while staying valid Swedish formatting. */
-  var GROUP_SEP = "\u202f";
+  var NBSP = "\u00a0";
 
   function fmtKr(value) {
     if (value == null || !isFinite(value)) return "—";
-    return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, GROUP_SEP);
+    return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
   }
 
   function fmtKm(value) {
     if (value == null) return "—";
-    return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, GROUP_SEP);
+    return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
   }
 
   function fmtPct(value) {
@@ -235,7 +231,7 @@
 
     /* Scheduled / optimised home rate (owner decision D1).
        A modern laddbox shifts charging to the cheapest hours, so the effective
-       home rate is lower. This feeds the THIRD "Schemalagd hemma laddning" bar ONLY —
+       home rate is lower. This feeds the THIRD "Hemma, schemalagd" bar ONLY —
        the headline annualSaving below stays anchored to the conservative flat
        homeRate and is NOT touched. Safe fallback (~22% under flat) if the
        per-zone optimised rate is absent in the data. */
@@ -318,8 +314,8 @@
   /* =====================================================================
      A11Y: DEBOUNCED HEADLINE ANNOUNCER
      One polite live region (#ampyEvSrStatus) replaces the old aria-live on
-     the whole results card. We debounce so dragging a slider does not spam
-     the SR queue — only the settled headline
+     the whole results card. We debounce so dragging a slider or stepping
+     applicants does not spam the SR queue — only the settled headline
      (annual saving) is announced, ~600ms after the last input change.
      ===================================================================== */
   var _srTimer = null;
@@ -779,7 +775,6 @@
 
     var pubLabel = r.pubType === "ac" ? "Offentlig AC-laddning" : "Offentlig DC-laddning";
     var regionName = (REGIONS[state.region] || {}).label || state.region;
-    var zone = regionName.split(" – ")[0];
 
     var row = function(label, rate, colorVar, bold) {
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.3rem 0;">' +
@@ -789,24 +784,10 @@
         '</div>';
     };
 
-    /* R12/R13: subordinate row for the optimised (schemalagd) home rate so the
-       third bar's number (e.g. SE3 1,35 kr/kWh) is traceable inline — the
-       staircase 5,50 → 1,90 → 1,35 reconciles with all three bars. Stepped down
-       to --fs-xs and a muted teal so it reads as a sub-detail of the home row,
-       not a competing figure. */
-    var subRow = function(label, rate) {
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.15rem 0 0.3rem var(--spacing-sm);">' +
-        '<span style="color:var(--on-surface-text-faint);font-size:var(--fs-xs);">' + label + '</span>' +
-        '<span class="ampy-calc__t-mono" style="font-size:var(--fs-xs);font-weight:600;color:var(--schemalagd-teal);">' +
-        fmtRate(rate) + ' kr/kWh</span>' +
-        '</div>';
-    };
-
     el.innerHTML =
       '<div style="background:var(--on-surface-subtle-bg);border-radius:var(--radius-md);padding:var(--spacing-sm) var(--spacing-md);">' +
         row(pubLabel, r.publicRate, "var(--state-warning)", false) +
-        row("Hemmaladdning (" + zone + ")", r.homeRate, "var(--state-success)", false) +
-        subRow("Hemma, schemalagd (" + zone + ")", r.homeRateOpt) +
+        row("Hemmaladdning (" + regionName.split(" – ")[0] + ")", r.homeRate, "var(--state-success)", false) +
         '<div style="height:1px;background:var(--on-surface-border);margin:0.4rem 0;"></div>' +
         row("Du sparar per kWh", r.rateGap, "var(--state-success)", true) +
       '</div>';
@@ -852,53 +833,27 @@
        For offert-only boxes there is no net series; fall back to pure savings so
        the tile never shows NaN. */
     var tenYear = !r.offert ? r.cumulativeNetN : r.cumulativeSavingsN;
-    /* R1: never pair a negative 10-yr value (or a zero/negative annual saving)
-       with a "you save"/"betald" label. At low public-share cumulativeNetN goes
-       negative (the box hasn't paid for itself yet) — show "—" + neutral framing
-       instead of e.g. "Sparar på 10 år −4 490 kr". */
-    var noPayback = !r.offert &&
-      (r.annualSaving <= 0 || tenYear == null || !isFinite(tenYear) || tenYear < 0);
-    if (noPayback) {
-      /* clear the stored prev so a later return to a positive value animates from
-         its real number, not from the "—" placeholder. */
-      delete previousValues.evCumulative;
-      $("ampyEvCumulativeValue").textContent = "—";
-    } else {
-      animateNumber("evCumulative", tenYear, fmtKr, "ampyEvCumulativeValue");
-    }
-    if (noPayback) {
-      /* R1 neutral framing: no minus under a savings word. */
-      $("ampyEvCumulativeLabel").textContent = "Återbetalning";
-      $("ampyEvHero10Sub").textContent = "Höj andelen publik laddning för att räkna hem laddboxen";
-    } else if (!r.offert) {
-      /* S2: parallel voice with the hero eyebrow ("Du sparar per år"). */
-      $("ampyEvCumulativeLabel").textContent = "Du sparar på " + horizon + " år";
+    animateNumber("evCumulative", tenYear, fmtKr, "ampyEvCumulativeValue");
+    if (!r.offert) {
+      $("ampyEvCumulativeLabel").textContent = "Sparar på " + horizon + " år";
       $("ampyEvHero10Sub").textContent = "laddboxen betald, Grön Teknik inräknad";
     } else {
-      /* S2: offert variant. */
-      $("ampyEvCumulativeLabel").textContent = "Din besparing på " + horizon + " år";
+      $("ampyEvCumulativeLabel").textContent = "Besparing på " + horizon + " år";
       $("ampyEvHero10Sub").textContent = "Din besparing på laddningen – oavsett vad laddboxen kostar.";
     }
 
     /* "Att betala" tile. Offert-only boxes have no price → "Begär offert".
        D2: priced boxes show ONE clean net price line — the gross − Grön Teknik
        breakdown is gone (the methodology explains the 48,5% statutory deduction). */
-    var netPayTile = $("ampyEvNetPayTile");
     if (r.offert) {
       /* No count-up for a non-numeric value; clear the stored prev so a later
          switch back to a priced box animates from its real value, not a string. */
       delete previousValues.evNetPay;
       $("ampyEvNetPay").textContent = "Begär offert";
       $("ampyEvNetPaySub").textContent = "Pris tas fram i offert för din anläggning.";
-      /* S1: the value is now TEXT ("Begär offert"), so the static "kr" unit span
-         would render the orphan "Begär offert kr". Flag the tile so the unit is
-         hidden (CSS display:none on .ampy-calc__trio-unit). */
-      if (netPayTile) netPayTile.classList.add("ampy-calc__trio-tile--text");
     } else {
       animateNumber("evNetPay", r.netCost, fmtKr, "ampyEvNetPay");
       $("ampyEvNetPaySub").textContent = "Pris inkl. installation, Grön Teknik & moms";
-      /* S1: priced branch — value is numeric, restore the "kr" unit. */
-      if (netPayTile) netPayTile.classList.remove("ampy-calc__trio-tile--text");
     }
 
     renderSavingsBreakdown(r);
@@ -919,7 +874,7 @@
      Replaces the payback chart. THREE on-brand bars whose widths are proportional
      to the monthly cost, plus a "Du sparar ≈ X kr/mån" delta. The numbers count
      up. The first two reconcile to the annual hero (× 12); the third
-     ("Schemalagd hemma laddning", owner decision D1) is an additive, visually-subordinate
+     ("Hemma, schemalagd", owner decision D1) is an additive, visually-subordinate
      bar showing the optimised-rate cost — it does NOT change the headline saving.
      Renders for offert-only boxes too (segment-agnostic — no box price needed).
      ===================================================================== */
@@ -983,9 +938,9 @@
       { h: "4. Grön Teknik-avdraget",
         c: gronPct + " % av priset, max " + cap1 + " kr/sökande/år (upp till " + RATES.maxApplicants + " sökande)",
         p: "Avdraget är 50 % av arbete och material. Med Skatteverkets schablon på 97 % blir det cirka " + gronPct + " % av totalpriset, vilket vi drar av direkt. Kräver att du äger bostaden, har skatt att dra mot, att installatören har F-skatt och att laddpunkten har uttag enligt EN 62196-2/-3." },
-      { h: "5. Hur säker siffran är",
-        c: "± " + uncertPct + " % osäkerhet på den årliga besparingen",
-        p: "Elpriser och körvanor svänger, så siffrorna är uppskattningar. Räkna med ungefär ± " + uncertPct + " % — din verkliga besparing landar troligen nära det vi visar, men kan bli något högre eller lägre." },
+      { h: "5. Varför vi visar ett spann",
+        c: "± " + uncertPct + " % på den årliga besparingen",
+        p: "Elpriser och körvanor svänger. Spannet visar en realistisk lägsta- och högstanivå — din verkliga besparing landar troligen däremellan." },
       { h: "6. Schemalagd laddning",
         c: "hemtaxa × ca 20–30 % lägre (varierar SE1–SE4)",
         p: "En modern laddbox flyttar laddningen automatiskt till de billigaste timmarna. Vi räknar med en sänkning på cirka 20–30 % av hemmakostnaden — inte hela spotskillnaden (30–60 %), eftersom den inte gäller alla timmar eller alla elavtal." },
