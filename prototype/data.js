@@ -87,7 +87,7 @@ window.AmpyEvCalcData = {
     {
       "id": "zaptec-go",
       "name": "Zaptec Go",
-      "description": "Kompakt favorit · inkl. installation",
+      "description": "Kompakt favorit",
       "badge": "Bästsäljare",
       "maxPowerKw": 22,
       "priceSek": 4490,
@@ -99,7 +99,7 @@ window.AmpyEvCalcData = {
     {
       "id": "zaptec-go-2",
       "name": "Zaptec Go 2",
-      "description": "Inbyggd display · inkl. installation",
+      "description": "Inbyggd display",
       "badge": "Rekommenderas",
       "maxPowerKw": 22,
       "priceSek": 5890,
@@ -111,7 +111,7 @@ window.AmpyEvCalcData = {
     {
       "id": "easee-charge-up",
       "name": "Easee Charge Up",
-      "description": "Smart & nätt · inkl. installation",
+      "description": "Smart & nätt",
       "badge": "Bästsäljare",
       "maxPowerKw": 22,
       "priceSek": 4390,
@@ -123,7 +123,7 @@ window.AmpyEvCalcData = {
     {
       "id": "nexblue-edge-2",
       "name": "NexBlue Edge 2",
-      "description": "Prisbelönt design · inkl. installation",
+      "description": "Prisbelönt design",
       "badge": "Prisvärd",
       "maxPowerKw": 22,
       "priceSek": 4190,
@@ -135,7 +135,7 @@ window.AmpyEvCalcData = {
     {
       "id": "go-e-gemini-flex-2-0",
       "name": "go-e Gemini Flex 2.0",
-      "description": "Fast eller flyttbar · inkl. installation",
+      "description": "Fast eller flyttbar",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 4990,
@@ -147,7 +147,7 @@ window.AmpyEvCalcData = {
     {
       "id": "tesla-wall-connector",
       "name": "Tesla Wall Connector",
-      "description": "Fast kabel 7,3 m · inkl. installation",
+      "description": "Fast kabel 7,3 m",
       "badge": null,
       "maxPowerKw": 11,
       "priceSek": 4450,
@@ -159,7 +159,7 @@ window.AmpyEvCalcData = {
     {
       "id": "charge-amps-luna",
       "name": "Charge Amps Luna",
-      "description": "Skandinavisk design · inkl. installation",
+      "description": "Skandinavisk design",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 4850,
@@ -171,7 +171,7 @@ window.AmpyEvCalcData = {
     {
       "id": "charge-amps-halo",
       "name": "Charge Amps Halo",
-      "description": "Fast kabel & statusljus · inkl. installation",
+      "description": "Fast kabel & statusljus",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 4990,
@@ -183,7 +183,7 @@ window.AmpyEvCalcData = {
     {
       "id": "charge-amps-dawn",
       "name": "Charge Amps Dawn",
-      "description": "Svensktillverkad premium · inkl. installation",
+      "description": "Svensktillverkad premium",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 6850,
@@ -195,7 +195,7 @@ window.AmpyEvCalcData = {
     {
       "id": "charge-amps-aura",
       "name": "Charge Amps Aura",
-      "description": "Två bilar samtidigt · inkl. installation",
+      "description": "Två bilar samtidigt",
       "badge": "Dubbel laddning",
       "maxPowerKw": 22,
       "priceSek": 14550,
@@ -207,7 +207,7 @@ window.AmpyEvCalcData = {
     {
       "id": "defa-power",
       "name": "Defa Power",
-      "description": "Display & −40 °C · inkl. installation",
+      "description": "Display & −40 °C",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 5250,
@@ -219,7 +219,7 @@ window.AmpyEvCalcData = {
     {
       "id": "amina-s",
       "name": "Amina S",
-      "description": "Marknadens minsta · inkl. installation",
+      "description": "Marknadens minsta",
       "badge": null,
       "maxPowerKw": 11,
       "priceSek": 4350,
@@ -231,7 +231,7 @@ window.AmpyEvCalcData = {
     {
       "id": "garo-entity-home",
       "name": "Garo Entity Home",
-      "description": "Driftsäker villabox · inkl. installation",
+      "description": "Driftsäker villabox",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 5310,
@@ -243,7 +243,7 @@ window.AmpyEvCalcData = {
     {
       "id": "wallbox-pulsar-max",
       "name": "Wallbox Pulsar Max",
-      "description": "Prisbelönt & kompakt · inkl. installation",
+      "description": "Prisbelönt & kompakt",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 4425,
@@ -280,23 +280,23 @@ window.AmpyEvCalcData = {
   "REGIONS": {
     "SE1": {
       "label": "SE1 – Norra Sverige",
-      "homeRateSekPerKwh": 1.45,
-      "homeRateOptimizedSekPerKwh": 1.05
+      "homeRateSekPerKwh": 1.1,
+      "homeRateOptimizedSekPerKwh": 0.6
     },
     "SE2": {
       "label": "SE2 – Norra Mellansverige",
-      "homeRateSekPerKwh": 1.5,
-      "homeRateOptimizedSekPerKwh": 1.15
+      "homeRateSekPerKwh": 1.15,
+      "homeRateOptimizedSekPerKwh": 0.65
     },
     "SE3": {
       "label": "SE3 – Södra Mellansverige",
-      "homeRateSekPerKwh": 1.9,
-      "homeRateOptimizedSekPerKwh": 1.35
+      "homeRateSekPerKwh": 1.6,
+      "homeRateOptimizedSekPerKwh": 0.9
     },
     "SE4": {
       "label": "SE4 – Södra Sverige",
-      "homeRateSekPerKwh": 2.1,
-      "homeRateOptimizedSekPerKwh": 1.45
+      "homeRateSekPerKwh": 1.8,
+      "homeRateOptimizedSekPerKwh": 1.0
     }
   },
   "RATES": {

@@ -1177,17 +1177,17 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
                offert-only boxes too (segment-agnostic). -->
           <div class="ampy-calc__monthly" id="ampyEvMonthly">
             <div class="ampy-calc__monthly-head">
-              <span class="ampy-calc__evidence-label">Din månadskostnad – publikt vs hemma</span>
+              <span class="ampy-calc__evidence-label">Din månadskostnad – offentligt vs hemma</span>
             </div>
             <div class="ampy-calc__monthly-cols">
               <div class="ampy-calc__monthly-col ampy-calc__monthly-col--public">
-                <span class="ampy-calc__monthly-col-label">Publik laddning idag</span>
+                <span class="ampy-calc__monthly-col-label">Offentlig laddning</span>
                 <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--public ampy-calc__t-mono">
                   <span id="ampyEvMonthlyPublic">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
                 </span>
               </div>
               <div class="ampy-calc__monthly-col ampy-calc__monthly-col--home">
-                <span class="ampy-calc__monthly-col-label">Hemma efter installation</span>
+                <span class="ampy-calc__monthly-col-label">Hemmaladdning</span>
                 <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--home ampy-calc__t-mono">
                   <span id="ampyEvMonthlyHome">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
                 </span>
@@ -1197,9 +1197,9 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
                    The headline annual saving is UNCHANGED — this is additive upside. -->
               <div class="ampy-calc__monthly-col ampy-calc__monthly-col--homeopt">
                 <span class="ampy-calc__monthly-col-label">
-                  Hemma, schemalagd
+                  Hemmaladdning, schemalagd på lågpristimmar
                   <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                          data-tip="Din laddbox laddar när elen är som billigast — spotpriset är 30–60 % lägre på lågpristimmar. Det sänker din hemmakostnad ytterligare några procent. Beror på elavtal och elområde.">i</button>
+                          data-tip="Din laddbox laddar automatiskt när elen är som billigast — spotpriset är 30–60 % lägre nattetid, vilket sänker din hemmakostnad med i snitt cirka 45 %. Beror på elavtal och elområde.">i</button>
                 </span>
                 <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--homeopt ampy-calc__t-mono">
                   <span id="ampyEvMonthlyHomeOpt">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>

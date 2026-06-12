@@ -25,10 +25,10 @@
   var CHARGERS  = _d.CHARGERS  || [];
 
   var REGIONS = _d.REGIONS || {
-    SE1: { label: "SE1 – Norra Sverige",       homeRateSekPerKwh: 1.45, homeRateOptimizedSekPerKwh: 1.05 },
-    SE2: { label: "SE2 – Norra Mellansverige", homeRateSekPerKwh: 1.50, homeRateOptimizedSekPerKwh: 1.15 },
-    SE3: { label: "SE3 – Södra Mellansverige", homeRateSekPerKwh: 1.90, homeRateOptimizedSekPerKwh: 1.35 },
-    SE4: { label: "SE4 – Södra Sverige",       homeRateSekPerKwh: 2.10, homeRateOptimizedSekPerKwh: 1.45 }
+    SE1: { label: "SE1 – Norra Sverige",       homeRateSekPerKwh: 1.10, homeRateOptimizedSekPerKwh: 0.60 },
+    SE2: { label: "SE2 – Norra Mellansverige", homeRateSekPerKwh: 1.15, homeRateOptimizedSekPerKwh: 0.65 },
+    SE3: { label: "SE3 – Södra Mellansverige", homeRateSekPerKwh: 1.60, homeRateOptimizedSekPerKwh: 0.90 },
+    SE4: { label: "SE4 – Södra Sverige",       homeRateSekPerKwh: 1.80, homeRateOptimizedSekPerKwh: 1.00 }
   };
 
   var RATES = Object.assign({
@@ -226,7 +226,7 @@
     var publicRate = pubType === "ac"
       ? RATES.publicAcRateSekPerKwh
       : RATES.publicDcRateSekPerKwh;
-    var homeRate   = (REGIONS[state.region] || {}).homeRateSekPerKwh || 1.90;
+    var homeRate   = (REGIONS[state.region] || {}).homeRateSekPerKwh || 1.60;
     var rateGap    = publicRate - homeRate;
 
     /* Scheduled / optimised home rate (owner decision D1).
@@ -235,7 +235,7 @@
        the headline annualSaving below stays anchored to the conservative flat
        homeRate and is NOT touched. Safe fallback (~22% under flat) if the
        per-zone optimised rate is absent in the data. */
-    var homeRateOpt = (REGIONS[state.region] || {}).homeRateOptimizedSekPerKwh || homeRate * 0.78;
+    var homeRateOpt = (REGIONS[state.region] || {}).homeRateOptimizedSekPerKwh || homeRate * 0.55;
 
     /* Annual saving — independent of the box price, so it is valid for
        offert-only boxes too. Uses the FLAT homeRate (unchanged). */
@@ -933,7 +933,7 @@
         c: "offentlig andel × energi × publik taxa (AC " + fmtRate(RATES.publicAcRateSekPerKwh) + " kr/kWh · DC " + fmtRate(RATES.publicDcRateSekPerKwh) + " kr/kWh)",
         p: "Typiska svenska priser 2025 för publik AC- respektive DC-laddning. Du väljer själv vilken typ du oftast använder." },
       { h: "3. Vad samma laddning kostar hemma",
-        c: "offentlig andel × energi × hemtaxa (1,45–2,10 kr/kWh, SE1–SE4)",
+        c: "offentlig andel × energi × hemtaxa (1,10–1,80 kr/kWh, SE1–SE4)",
         p: "Din totala hemma-kostnad per kWh — spotpris, nätavgift och skatt — i snitt för ditt elprisområde." },
       { h: "4. Grön Teknik-avdraget",
         c: gronPct + " % av priset, max " + cap1 + " kr/sökande/år (upp till " + RATES.maxApplicants + " sökande)",
@@ -942,8 +942,8 @@
         c: "± " + uncertPct + " % på den årliga besparingen",
         p: "Elpriser och körvanor svänger. Spannet visar en realistisk lägsta- och högstanivå — din verkliga besparing landar troligen däremellan." },
       { h: "6. Schemalagd laddning",
-        c: "hemtaxa × ca 20–30 % lägre (varierar SE1–SE4)",
-        p: "En modern laddbox flyttar laddningen automatiskt till de billigaste timmarna. Vi räknar med en sänkning på cirka 20–30 % av hemmakostnaden — inte hela spotskillnaden (30–60 %), eftersom den inte gäller alla timmar eller alla elavtal." },
+        c: "hemtaxa × ca 45 % lägre på lågpristimmar",
+        p: "En modern laddbox flyttar laddningen automatiskt till dygnets billigaste timmar, då spotpriset är 30–60 % lägre. I snitt räknar vi med en sänkning på cirka 45 % av hemmakostnaden." },
     ];
     host.innerHTML = items.map(function (it) {
       return '<div class="ampy-calc__methodology-item"><h3>' + it.h + "</h3><code>" + it.c + "</code><p>" + it.p + "</p></div>";
