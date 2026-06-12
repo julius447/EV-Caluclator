@@ -304,10 +304,11 @@ def parse_price_areas(rows):
             label = code
         hr_raw = get(r, col, 'home_rate_sek_per_kwh', None)
         home_rate = php_float(hr_raw) if hr_raw not in (None, '') else 2.20
-        # homeRateOptimizedSekPerKwh: new PriceAreas column. Blank/absent -> ~88%
-        # of the flat home rate (mirrors PHP `round($home_rate * 0.88, 2)`).
+        # homeRateOptimizedSekPerKwh: new PriceAreas column. Blank/absent -> ~78%
+        # of the flat home rate (mirrors PHP `round($home_rate * 0.78, 2)` and the
+        # engine's `homeRate * 0.78` fallback — all three layers agree).
         opt_raw = get(r, col, 'home_rate_optimized_sek_per_kwh', None)
-        opt_rate = round(home_rate * 0.88, 2) if opt_raw in (None, '') else php_float(opt_raw)
+        opt_rate = round(home_rate * 0.78, 2) if opt_raw in (None, '') else php_float(opt_raw)
         regions[code] = {
             'label': label,
             'homeRateSekPerKwh': home_rate,
@@ -337,7 +338,7 @@ def parse_system_coefficients(rows):
         'uncertainty_pct': 'uncertaintyBand',
     }
     rates = {
-        'horizonYears': 10, 'publicAcRateSekPerKwh': 4.50, 'publicDcRateSekPerKwh': 5.99,
+        'horizonYears': 10, 'publicAcRateSekPerKwh': 4.50, 'publicDcRateSekPerKwh': 5.50,
         'chargerEfficiencyPct': 0.90, 'gronTeknikRate': 0.485,
         'gronTeknikCapPerApplicant': 50000, 'maxApplicants': 2, 'uncertaintyBand': 0.10,
     }

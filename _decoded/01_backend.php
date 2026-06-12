@@ -82,10 +82,20 @@ function ampy_ev_calc_allowed_types(): array {
     return [ 'quote_request', 'email_calculation' ];
 }
 
-/** Current consent text/version shown to the user — persisted with each lead. */
-function ampy_ev_calc_consent_version(): string { return '2026-06-v1'; }
+/**
+ * FALLBACK consent text/version — used only when a lead arrives WITHOUT a
+ * client-sent consent string. The authoritative audit value is the version/text
+ * the user actually saw, which the frontend sends in `contact.consent.{version,text}`
+ * (see CONSENT_VERSION / CONSENT_TEXT in 00_js-engine.js and the rendered notice
+ * #ampyEvLeadConsentNotice). These constants MUST mirror that rendered copy so a
+ * fallback record still matches what was on screen; keep all three in lock-step.
+ */
+function ampy_ev_calc_consent_version(): string { return '2026-06-10.1'; }
 function ampy_ev_calc_consent_text(): string {
-    return 'Jag godkänner att Ampy lagrar mina uppgifter för att kontakta mig om en offert.';
+    return 'Jag samtycker till att Ampy lagrar och behandlar mina kontakt- och '
+         . 'kalkyluppgifter för att kontakta mig med en offert. Du kan när som helst '
+         . 'återkalla samtycket. Se vår integritetspolicy för hur vi hanterar dina '
+         . 'uppgifter och dina rättigheter.';
 }
 
 /**
@@ -145,23 +155,42 @@ function ampy_ev_calc_api_submit_lead( WP_REST_Request $req ): WP_REST_Response|
         return new WP_Error( 'bad_type', 'Unknown submission type.', [ 'status' => 400 ] );
     }
 
+    /* ── PART 3: anti-bot signals — the frontend NESTS them under `antibot`.
+       buildPayload() (00_js-engine.js) emits:
+         antibot: { honeypot, formOpenedAt (ISO-8601 string), submittedAt, elapsedMs }
+       so read them from that object. Tolerate a flat/top-level fallback (and the
+       legacy `hp`/`website` honeypot names) so a hand-rolled client still works. */
+    $antibot = is_array( $payload['antibot'] ?? null ) ? $payload['antibot'] : [];
+
     /* ── PART 3: honeypot — a bot fills the hidden field; humans leave it blank ─ */
-    $honeypot = $payload['hp'] ?? $payload['website'] ?? $payload['honeypot'] ?? '';
+    $honeypot = $antibot['honeypot']
+        ?? $payload['honeypot'] ?? $payload['hp'] ?? $payload['website'] ?? '';
     if ( is_string( $honeypot ) && trim( $honeypot ) !== '' ) {
         // Pretend success so bots don't learn they were caught; store nothing.
         return rest_ensure_response( [ 'success' => true ] );
     }
 
     /* ── PART 3: form-open delta — reject near-instant (bot) submissions ──────
-       The client should send `formElapsedMs` (ms since the form was rendered)
-       and/or `formOpenedAt` (epoch ms). When that signal is present and < 2s,
-       reject. Absent signal cannot be measured, so it passes (the current
-       frontend does not yet send it — see TODO for frontend adoption). */
-    $elapsed_ms = null;
-    if ( isset( $payload['formElapsedMs'] ) && is_numeric( $payload['formElapsedMs'] ) ) {
-        $elapsed_ms = (float) $payload['formElapsedMs'];
-    } elseif ( isset( $payload['formOpenedAt'] ) && is_numeric( $payload['formOpenedAt'] ) ) {
-        $elapsed_ms = ( microtime( true ) * 1000 ) - (float) $payload['formOpenedAt'];
+       The client sends `antibot.elapsedMs` (ms since the form was first opened)
+       and `antibot.formOpenedAt` (an ISO-8601 string). Prefer the explicit
+       elapsedMs; otherwise derive it from formOpenedAt (parsed as a date, with a
+       numeric epoch-ms fallback). When the signal is present and < 2s, reject;
+       an absent/unparseable signal cannot be measured, so it passes. */
+    $elapsed_ms   = null;
+    $elapsed_raw  = $antibot['elapsedMs']   ?? $payload['formElapsedMs'] ?? null;
+    $opened_raw   = $antibot['formOpenedAt'] ?? $payload['formOpenedAt']  ?? null;
+    if ( is_numeric( $elapsed_raw ) ) {
+        $elapsed_ms = (float) $elapsed_raw;
+    } elseif ( $opened_raw !== null && $opened_raw !== '' ) {
+        if ( is_numeric( $opened_raw ) ) {
+            $opened_ms = (float) $opened_raw;                 // epoch ms fallback
+        } else {
+            $ts = strtotime( (string) $opened_raw );          // ISO-8601 string
+            $opened_ms = ( $ts !== false ) ? $ts * 1000 : null;
+        }
+        if ( isset( $opened_ms ) && $opened_ms !== null ) {
+            $elapsed_ms = ( microtime( true ) * 1000 ) - $opened_ms;
+        }
     }
     if ( $elapsed_ms !== null && $elapsed_ms < 2000 ) {
         return new WP_Error( 'too_fast', 'Form submitted too quickly.', [ 'status' => 400 ] );
@@ -187,13 +216,19 @@ function ampy_ev_calc_api_submit_lead( WP_REST_Request $req ): WP_REST_Response|
     }
 
     /* ── PART 4: GDPR — a consent flag is REQUIRED; reject (400) without it ───
-       Accepts top-level `consent`/`gdprConsent` or nested `contact.consent`.
-       NOTE FOR FRONTEND: the current JS engine does NOT yet send a consent
-       flag — a consent checkbox + `consent: true` in the payload must be added
-       to 00_js-engine.js / the lead form before go-live, or every submission
-       will 400 here. This is intentional: no consent => no PII stored. */
+       The frontend sends `contact.consent` as an OBJECT
+       ({ given, version, text, timestamp } — see the submit handler in
+       00_js-engine.js). We also tolerate a top-level scalar `consent`/`gdprConsent`
+       or a nested `contact.consent.given` boolean. The version/text of THAT object
+       is the audit value persisted below. No consent => no PII stored. */
     $contact_in  = is_array( $payload['contact'] ?? null ) ? $payload['contact'] : [];
-    $consent_raw = $payload['consent'] ?? $payload['gdprConsent'] ?? ( $contact_in['consent'] ?? null );
+    // The structured consent record the client showed the user (may be absent).
+    $consent_in  = is_array( $contact_in['consent'] ?? null ) ? $contact_in['consent'] : [];
+    // Resolve the consent FLAG from either the nested object's `given`, the nested
+    // scalar, or a top-level scalar — whichever the client provided.
+    $consent_raw = $consent_in['given']
+                   ?? $payload['consent'] ?? $payload['gdprConsent']
+                   ?? ( is_array( $contact_in['consent'] ?? null ) ? null : ( $contact_in['consent'] ?? null ) );
     $has_consent = ( $consent_raw === true || $consent_raw === 1 || $consent_raw === '1'
                      || ( is_string( $consent_raw ) && strtolower( $consent_raw ) === 'true' ) );
     if ( ! $has_consent ) {
@@ -325,12 +360,22 @@ function ampy_ev_calc_api_submit_lead( WP_REST_Request $req ): WP_REST_Response|
         'car'       => sanitize_text_field( $res['evModelName'] ?? '' ),
         'charger'   => sanitize_text_field( $res['chargerName'] ?? '' ),
         'net'       => (int)( $res['netCost'] ?? 0 ),
+        // Article-7 audit trail: persist the version/text the USER ACTUALLY SAW.
+        // The frontend sends it in `contact.consent.{version,text,timestamp}`;
+        // fall back to the server constants (kept mirrored to the rendered copy)
+        // only when a client value is missing, so the stored record never diverges
+        // from the on-screen notice. `given` is always true here (we hard-reject
+        // un-consented submissions above). `client_timestamp` keeps the browser's
+        // claimed agreement time; `timestamp`/`ip` are our server-side receipt.
         'consent'   => [
-            'given'     => true,
-            'version'   => ampy_ev_calc_consent_version(),
-            'text'      => ampy_ev_calc_consent_text(),
-            'timestamp' => current_time( 'mysql' ),
-            'ip'        => ampy_ev_calc_client_ip(),
+            'given'            => true,
+            'version'          => sanitize_text_field(
+                                      $consent_in['version'] ?? ampy_ev_calc_consent_version() ),
+            'text'             => sanitize_textarea_field(
+                                      $consent_in['text'] ?? ampy_ev_calc_consent_text() ),
+            'client_timestamp' => sanitize_text_field( $consent_in['timestamp'] ?? '' ),
+            'timestamp'        => current_time( 'mysql' ),
+            'ip'               => ampy_ev_calc_client_ip(),
         ],
         'delivery'  => [ 'ok' => $delivered, 'via' => $delivery_via ],
     ] );
@@ -845,12 +890,13 @@ function ampy_ev_calc_parse_price_areas( array $rows ): array {
         $code = trim( $r[ $col['area_code'] ] ?? '' );
         if ( ! $code ) continue;
         // homeRateOptimizedSekPerKwh: per-zone scheduled-charging (optimised) rate.
-        // New PriceAreas column. When absent/blank, fall back to ~88% of the flat
+        // New PriceAreas column. When absent/blank, fall back to ~78% of the flat
         // home rate so old data never produces a NaN/0 optimised bar downstream
-        // (mirrors the engine's `homeRate * 0.88` safe fallback).
+        // (mirrors the engine's `homeRate * 0.78` safe fallback — keep this in
+        // lock-step with engine.js and verify_faithful.py).
         $home_rate = (float)( $r[ $col['home_rate_sek_per_kwh'] ] ?? 2.20 );
         $opt_raw   = (string) ( $r[ $col['home_rate_optimized_sek_per_kwh'] ] ?? '' );
-        $opt_rate  = ( $opt_raw === '' ) ? round( $home_rate * 0.88, 2 ) : (float) $opt_raw;
+        $opt_rate  = ( $opt_raw === '' ) ? round( $home_rate * 0.78, 2 ) : (float) $opt_raw;
         $regions[$code] = [
             'label'                      => trim( $r[ $col['name'] ] ?? $code ),
             'homeRateSekPerKwh'          => $home_rate,
@@ -884,7 +930,7 @@ function ampy_ev_calc_parse_system_coefficients( array $rows ): array {
     $rates = [
         'horizonYears'             => 10,
         'publicAcRateSekPerKwh'    => 4.50,
-        'publicDcRateSekPerKwh'    => 5.99,
+        'publicDcRateSekPerKwh'    => 5.50,
         'chargerEfficiencyPct'     => 0.90,
         'gronTeknikRate'           => 0.485,
         'gronTeknikCapPerApplicant'=> 50000,
@@ -1152,7 +1198,7 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
           <!-- Secondary stat tiles -->
           <div class="ampy-calc__trio" id="ampyEvTrio">
             <div class="ampy-calc__trio-tile" id="ampyEvCumulativeTile">
-              <span class="ampy-calc__trio-label" id="ampyEvCumulativeLabel">Sparar på 10 år</span>
+              <span class="ampy-calc__trio-label" id="ampyEvCumulativeLabel">Du sparar på 10 år</span>
               <span class="ampy-calc__trio-value ampy-calc__t-mono">
                 <span id="ampyEvCumulativeValue">—</span><span class="ampy-calc__trio-unit">kr</span>
               </span>
