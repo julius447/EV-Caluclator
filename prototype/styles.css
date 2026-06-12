@@ -63,15 +63,12 @@
   --on-surface-border-strong:  rgba(255, 255, 255, 0.28);
   --on-surface-subtle-bg:      rgba(255, 255, 255, 0.06);
 
-  /* Spacing — mapped onto ampy.se's Core Framework --apspace-* scale so the
-     calculator's rhythm matches the rest of ampy.se. Uses the live token when
-     embedded on ampy.se; the fallback is ampy.se's exact value standalone. */
-  --spacing-xs:  var(--apspace-2xs, clamp(0.82rem, calc(0.18vw + 0.76rem), 0.99rem));
-  --spacing-sm:  var(--apspace-xs,  clamp(1.02rem, calc(0.39vw + 0.9rem),  1.4rem));
-  --spacing-md:  var(--apspace-s,   clamp(1.28rem, calc(0.73vw + 1.05rem), 1.98rem));
-  --spacing-lg:  var(--apspace-m,   clamp(1.6rem,  calc(1.25vw + 1.2rem),  2.8rem));
-  --spacing-xl:  var(--apspace-l,   clamp(2rem,    calc(2.04vw + 1.35rem), 3.96rem));
-  --spacing-2xl: var(--apspace-xl,  clamp(2.5rem,  calc(3.23vw + 1.47rem), 5.6rem));
+  --spacing-xs:  0.5rem;
+  --spacing-sm:  0.75rem;
+  --spacing-md:  1rem;
+  --spacing-lg:  1.5rem;
+  --spacing-xl:  2rem;
+  --spacing-2xl: 3rem;
 
   --radius-sm:   0.6rem;
   --radius-md:   1.2rem;
@@ -86,18 +83,21 @@
   --motion-normal: 300ms;
   --easing:        cubic-bezier(0.2, 0, 0.2, 1);
 
-  /* Type scale — mapped onto ampy.se's Core Framework --aptext-* scale
-     (viewport-fluid) so font sizes match ampy.se when embedded, and use the
-     same values standalone. Replaces the old 100cqi clamps that collapsed
-     toward their floor inside the half-width results column. */
-  --fs-xs:  var(--aptext-xs,  clamp(1rem,   calc(0.21vw + 0.93rem), 1.2rem));
-  --fs-sm:  var(--aptext-sm,  clamp(1.4rem, calc(0.21vw + 1.33rem), 1.6rem));
-  --fs-md:  var(--aptext-m,   clamp(1.6rem, calc(0.21vw + 1.53rem), 1.8rem));
-  --fs-lg:  var(--aptext-lm,  clamp(2.2rem, calc(0.63vw + 2rem),    2.8rem));
-  --fs-xl:  var(--aptext-xl,  clamp(2.4rem, calc(0.83vw + 2.13rem), 3.2rem));
-  --fs-2xl: var(--aptext-2xl, clamp(2.6rem, calc(1.04vw + 2.27rem), 3.6rem));
-  --fs-3xl: var(--aptext-3xl, clamp(3rem,   calc(1.88vw + 2.4rem),  4.8rem));
-  --fs-4xl: var(--aptext-4xl, clamp(3.4rem, calc(2.71vw + 2.53rem), 6rem));
+  /* Point 14 / "blaffigt": four clamp FLOORS lowered one notch so the narrow
+     end (320–375px) reads calmer; the 100cqi interpolation leaves desktop
+     (the ceilings) untouched.
+       --fs-2xl H1 floor       2.2 → 2.0rem
+       --fs-xl  hero unit/value floor 2.0 → 1.8rem
+       --fs-lg  secondary vals floor 1.8 → 1.7rem
+       --fs-4xl hero value floor 4.0 → 3.4rem */
+  --fs-xs:  clamp(1rem,   calc(1rem   + (1.2 - 1)   * ((100cqi - 320px) / 960)), 1.2rem);
+  --fs-sm:  clamp(1.2rem, calc(1.2rem + (1.4 - 1.2) * ((100cqi - 320px) / 960)), 1.4rem);
+  --fs-md:  clamp(1.7rem, calc(1.7rem + (1.8 - 1.7) * ((100cqi - 320px) / 960)), 1.8rem);
+  --fs-lg:  clamp(1.7rem, calc(1.7rem + (2.8 - 1.7) * ((100cqi - 320px) / 960)), 2.8rem);
+  --fs-xl:  clamp(1.8rem, calc(1.8rem + (3.6 - 1.8) * ((100cqi - 320px) / 960)), 3.6rem);
+  --fs-2xl: clamp(2rem,   calc(2rem   + (4.8 - 2)   * ((100cqi - 320px) / 960)), 4.8rem);
+  --fs-3xl: clamp(2.6rem, calc(2.6rem + (6   - 2.6) * ((100cqi - 320px) / 960)), 6rem);
+  --fs-4xl: clamp(3.4rem, calc(3.4rem + (7.5 - 3.4) * ((100cqi - 320px) / 960)), 7.5rem);
 
   --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-body:    "Outfit", system-ui, sans-serif;
@@ -220,7 +220,7 @@
   font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
   color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ampy-calc__selector-best { font-size: var(--fs-xs); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ampy-calc__selector-best { font-size: var(--fs-xs); color: var(--text-secondary); }
 /* Badge placement (Part 3 §3-1): in the SELECTED button it right-aligns before
    the chevron with a clear gap; in a LIST option it right-aligns but never
    kisses the edge. */
@@ -747,13 +747,7 @@
   display: inline-flex; align-items: baseline; gap: 0.6rem; transition: color var(--motion-fast);
 }
 .ampy-calc__value-unit { font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 500; font-family: var(--font-body); }
-.ampy-calc__selector-button--prominent { padding: var(--spacing-md); position: relative; flex-wrap: wrap; row-gap: var(--spacing-xs); padding-right: 4.4rem; }
-/* Keep the "Bästsäljare"/badge from squeezing the selected name into an ellipsis
-   (or char-wrap) on narrow widths: drop the badge to its own line and pin the
-   chevron top-right, so the name + description get the full first row. */
-.ampy-calc__selector-button--prominent > #ampyEvCarBadgeA,
-.ampy-calc__selector-button--prominent > #ampyEvChargerBadgeA { flex-basis: 100%; order: 5; }
-.ampy-calc__selector-button--prominent > .ampy-calc__selector-chevron { position: absolute; right: var(--spacing-md); top: 50%; transform: translateY(-50%); }
+.ampy-calc__selector-button--prominent { padding: var(--spacing-md); }
 /* 3-2: selector img 56→48px so the selected button matches its own dropdown
    option image (4.8rem) and the inputs card stops reading top-heavy. */
 .ampy-calc__selector-img--lg { width: 4.8rem; height: 4.8rem; }
