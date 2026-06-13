@@ -634,6 +634,50 @@ errors. Files: `styles.css`, `engine.js`, `index.html`.
 - ⚠ G4 still open: scope `html{font-size:62.5%}` to the component in the WP port
   (the popover already uses px fallbacks so it survives a 16px host root).
 
+## Iteration — Smart laddning only (2026-06-13)
+
+Owner: drop the ordinary flat-rate home bar (the "501 kr/mån" middle bar) entirely.
+Keep only **Offentlig laddning** vs **Smart laddning** in the monthly panel, and make
+smart (scheduled, low-price-hour) charging the home baseline the saving compares against.
+"Vi kommer pusha väldigt mycket för smart laddning." This intentionally reverses the
+old D1 design (headline was anchored to the conservative flat rate; smart was a
+subordinate additive third bar).
+
+Changes (prototype + WP port `_decoded/`; browser-verified BEFORE push):
+- **engine.js `calculateFor`:** `homeRate` is now sourced from `homeRateOptimizedSekPerKwh`
+  (the smart/optimised per-zone rate) instead of the flat `homeRateSekPerKwh`. `rateGap`,
+  `annualSaving`, `monthlyHomeCost` and the breakdown all flow from it → "publik vs smart".
+  Removed `homeRateOpt` / `monthlyHomeOptCost` and their return fields. `monthlySaving`
+  still reconciles to the annual hero (× 12).
+- **`renderMonthlyComparison`:** 3 bars → 2 (public + smart). Dropped `--monthly-homeopt-frac`
+  and the `ampyEvMonthlyHomeOpt` count-up + empty-state clear.
+- **index.html / 01_backend.php markup:** removed the `--homeopt` column; the kept `--home`
+  column is relabelled **"Smart laddning"** (solid/primary styling) and carries the
+  smart-charging tooltip ("…30–60 % lägre under lågpristimmar…" — "nattetid" dropped per the
+  copy rule). Heading unchanged ("…offentligt vs hemma").
+- **styles.css:** removed the now-orphaned `--homeopt` bar + value rules.
+- **`populateMethodology`:** item 3 → "Vad smart hemmaladdning kostar" (0,60–1,00 kr/kWh,
+  folds in the scheduling explanation); the separate item 6 "Schemalagd laddning" removed → 5 items.
+- **`renderSavingsBreakdown`:** middle row "Hemmaladdning" → "Smart laddning".
+- **heroSub** → "…till smart laddning hemma".
+
+Superseded a half-finished WIP of this same change that was sitting uncommitted in
+`prototype/engine.js` (engine partially rewired but markup/CSS/methodology/_decoded/PHP
+untouched → inconsistent); replaced with this complete, consistent version.
+
+Verify (SE3 default · Tesla Model Y + Zaptec Go + DC + 100 % + 20 000 km):
+hero **17 276 kr/år** (was 14 647 on the flat rate); monthly **publik 1 721 / smart 282 /
+sparar 1 440**; breakdown smart **0,90** / gap **4,60 kr/kWh**; 10-yr **168 266 kr**.
+SE4+DC 16 900; SE4+AC 13 144 — all reconcile. 0 console errors; prototype↔`_decoded`
+engine/styles byte-parity. `data.js` / Excel / parser untouched (oracle unaffected).
+`homeRateSekPerKwh` (flat) is left in data + the PHP parser but is now unused by the calc —
+optional follow-up cleanup.
+
+⚠ **Honesty note for sign-off:** the headline saving now rests on the SMART home rate
+(≈45 % below flat, best-case scheduling), not the conservative flat rate. That best-case
+assumption now drives the lead number, not just an upside bar — fold it into the pending
+Ampy data sign-off (it raises the default headline ~14 647 → ~17 276 kr/år).
+
 ## Backlog — judgment calls for owner (not yet done)
 
 1. **Default public type = DC (5,99 kr/kWh) maximises the headline.** DC vs AC (4,50)

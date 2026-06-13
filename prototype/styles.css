@@ -577,7 +577,7 @@
   background: var(--on-surface-subtle-bg); border-radius: var(--radius-md);
 }
 .ampy-calc__monthly-head { display: flex; align-items: baseline; justify-content: space-between; }
-/* Bar-to-bar gap → --spacing-lg so each cost+bar pair reads as one unit (3 bars). */
+/* Bar-to-bar gap → --spacing-lg so each cost+bar pair reads as one unit (2 bars). */
 .ampy-calc__monthly-cols { display: flex; flex-direction: column; gap: var(--spacing-lg); }
 .ampy-calc__monthly-col { display: flex; flex-direction: column; gap: var(--spacing-xs); min-width: 0; }
 .ampy-calc__monthly-col-label {
@@ -591,9 +591,6 @@
 }
 .ampy-calc__monthly-col-value--public { color: var(--state-warning); }
 .ampy-calc__monthly-col-value--home   { color: var(--state-success); }
-/* Scheduled / optimised home value — subordinate to the solid home value:
-   slightly smaller and softer so the hierarchy reads public > home > schemalagd. */
-.ampy-calc__monthly-col-value--homeopt { color: var(--state-success); font-size: var(--fs-md); opacity: 0.85; }
 .ampy-calc__monthly-col-unit { font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
 /* Cost bar: a rounded track whose fill width is ∝ the monthly cost. The track
    is the ::after block; the ::before is the fill, absolutely positioned over it
@@ -613,8 +610,7 @@
   width: calc(100% * var(--bar-frac, 0));
   transition: width var(--motion-normal) var(--easing);
 }
-/* Per-bar fraction + fill, keyed off explicit modifier classes (NOT nth-child)
-   so the third "schemalagd" bar slots in without re-targeting the home bar. */
+/* Per-bar fraction + fill, keyed off explicit modifier classes (NOT nth-child). */
 .ampy-calc__monthly-col--public {
   --bar-frac: var(--monthly-public-frac, 0);
 }
@@ -628,20 +624,6 @@
 }
 .ampy-calc__monthly-col--home::before {
   background: linear-gradient(90deg, var(--action-primary), var(--state-success));
-}
-/* Third bar — scheduled / optimised home charging. Visually subordinate to the
-   solid home bar: lighter, dashed, lower opacity so it reads as a "bonus" layer. */
-.ampy-calc__monthly-col--homeopt {
-  --bar-frac: var(--monthly-homeopt-frac, 0);
-}
-.ampy-calc__monthly-col--homeopt::before {
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(57, 194, 129, 0.55),
-    rgba(57, 194, 129, 0.55) 4px,
-    rgba(57, 194, 129, 0.28) 4px,
-    rgba(57, 194, 129, 0.28) 8px
-  );
 }
 .ampy-calc__monthly-delta {
   display: flex; align-items: baseline; justify-content: space-between;

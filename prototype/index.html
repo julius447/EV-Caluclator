@@ -211,23 +211,17 @@
                   <span id="ampyEvMonthlyPublic">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
                 </span>
               </div>
+              <!-- Home charging = smart charging only (owner decision 2026-06-13):
+                   the flat-rate home bar was removed; this single home bar IS the
+                   smart / scheduled-on-low-price-hours option. Solid (primary) styling. -->
               <div class="ampy-calc__monthly-col ampy-calc__monthly-col--home">
-                <span class="ampy-calc__monthly-col-label">Hemmaladdning</span>
+                <span class="ampy-calc__monthly-col-label">
+                  Smart laddning
+                  <button type="button" class="ampy-calc__tip" aria-label="Mer info"
+                          data-tip="Din laddbox laddar automatiskt när elen är som billigast — spotpriset är 30–60 % lägre under lågpristimmar, vilket sänker din hemmakostnad med i snitt cirka 45 %. Beror på elavtal och elområde.">i</button>
+                </span>
                 <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--home ampy-calc__t-mono">
                   <span id="ampyEvMonthlyHome">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
-                </span>
-              </div>
-              <!-- Third bar: scheduled / optimised home charging (owner decision D1).
-                   Visually subordinate (lighter, dashed) to the solid home bar.
-                   The headline annual saving is UNCHANGED — this is additive upside. -->
-              <div class="ampy-calc__monthly-col ampy-calc__monthly-col--homeopt">
-                <span class="ampy-calc__monthly-col-label">
-                  Hemmaladdning, schemalagd på lågpristimmar
-                  <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                          data-tip="Din laddbox laddar automatiskt när elen är som billigast — spotpriset är 30–60 % lägre nattetid, vilket sänker din hemmakostnad med i snitt cirka 45 %. Beror på elavtal och elområde.">i</button>
-                </span>
-                <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--homeopt ampy-calc__t-mono">
-                  <span id="ampyEvMonthlyHomeOpt">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
                 </span>
               </div>
             </div>

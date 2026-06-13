@@ -226,32 +226,24 @@
     var publicRate = pubType === "ac"
       ? RATES.publicAcRateSekPerKwh
       : RATES.publicDcRateSekPerKwh;
-    var homeRate   = (REGIONS[state.region] || {}).homeRateSekPerKwh || 1.60;
+    /* Home charging = SMART charging only (owner decision, 2026-06-13). The home
+       baseline is the per-zone SMART/optimised rate — a modern laddbox schedules
+       charging to the cheapest hours. The old flat-rate home bar was removed, so
+       the headline saving is now "publik vs smart laddning". Fallback ≈ SE3 smart. */
+    var homeRate   = (REGIONS[state.region] || {}).homeRateOptimizedSekPerKwh || 0.90;
     var rateGap    = publicRate - homeRate;
 
-    /* Scheduled / optimised home rate (owner decision D1).
-       A modern laddbox shifts charging to the cheapest hours, so the effective
-       home rate is lower. This feeds the THIRD "Hemma, schemalagd" bar ONLY —
-       the headline annualSaving below stays anchored to the conservative flat
-       homeRate and is NOT touched. Safe fallback (~22% under flat) if the
-       per-zone optimised rate is absent in the data. */
-    var homeRateOpt = (REGIONS[state.region] || {}).homeRateOptimizedSekPerKwh || homeRate * 0.55;
-
     /* Annual saving — independent of the box price, so it is valid for
-       offert-only boxes too. Uses the FLAT homeRate (unchanged). */
+       offert-only boxes too. Uses the smart home rate. */
     var annualSaving = publicKwh * rateGap;
 
-    /* Monthly cost comparison — what the public-charged kWh cost publicly vs at
-       home, per month. Segment-agnostic (valid for offert-only boxes too).
-       Reconciles to the annual hero exactly: (public − home) × 12 === annualSaving. */
+    /* Monthly cost comparison — what the public-charged kWh cost publicly vs with
+       smart home charging, per month. Segment-agnostic (valid for offert-only
+       boxes too). Reconciles to the annual hero exactly:
+       (public − smart) × 12 === annualSaving. */
     var monthlyPublicCost = publicKwh * publicRate / 12;
-    var monthlyHomeCost   = publicKwh * homeRate   / 12;
+    var monthlyHomeCost   = publicKwh * homeRate   / 12;   /* smart home cost */
     var monthlySaving     = monthlyPublicCost - monthlyHomeCost;
-
-    /* Third bar: monthly cost if the box schedules charging to the cheapest
-       hours. Same shape as monthlyHomeCost, at the optimised rate. Additive
-       upside — does NOT change the headline saving. */
-    var monthlyHomeOptCost = publicKwh * homeRateOpt / 12;
 
     /* Charger cost + Grön Teknik.
        The catalogue ships TWO real prices per box:
@@ -292,10 +284,8 @@
       homeRate:            homeRate,
       rateGap:             rateGap,
       annualSaving:        annualSaving,
-      homeRateOpt:         homeRateOpt,
       monthlyPublicCost:   monthlyPublicCost,
       monthlyHomeCost:     monthlyHomeCost,
-      monthlyHomeOptCost:  monthlyHomeOptCost,
       monthlySaving:       monthlySaving,
       grossPrice:          grossPrice,
       gronTeknik:          gronTeknik,
@@ -787,7 +777,7 @@
     el.innerHTML =
       '<div style="background:var(--on-surface-subtle-bg);border-radius:var(--radius-md);padding:var(--spacing-sm) var(--spacing-md);">' +
         row(pubLabel, r.publicRate, "var(--state-warning)", false) +
-        row("Hemmaladdning (" + regionName.split(" – ")[0] + ")", r.homeRate, "var(--state-success)", false) +
+        row("Smart laddning (" + regionName.split(" – ")[0] + ")", r.homeRate, "var(--state-success)", false) +
         '<div style="height:1px;background:var(--on-surface-border);margin:0.4rem 0;"></div>' +
         row("Du sparar per kWh", r.rateGap, "var(--state-success)", true) +
       '</div>';
@@ -809,7 +799,7 @@
       $("ampyEvHero10Sub").textContent = "—";
       $("ampyEvNetPay").textContent = "—";
       $("ampyEvNetPaySub").textContent = "—";
-      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlyHomeOpt","ampyEvMonthlySaving"].forEach(function(id){ var el = $(id); if (el) el.textContent = "—"; });
+      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlySaving"].forEach(function(id){ var el = $(id); if (el) el.textContent = "—"; });
       $("ampyEvSavingsBreakdown").innerHTML = "";
       announceHeadline("Välj en elbil och en laddbox för att se din besparing.");
       return;
@@ -825,8 +815,8 @@
     var pubPct = Math.round((r.publicPct != null ? r.publicPct : 0) * 100);
     var heroSub;
     if (pubPct <= 0)        heroSub = "Dra upp andelen publik laddning så ser du vad du kan spara.";
-    else if (pubPct >= 100) heroSub = "om du flyttar all din publika laddning hem";
-    else                    heroSub = "om du flyttar " + pubPct + " % av din publika laddning hem";
+    else if (pubPct >= 100) heroSub = "om du flyttar all din publika laddning till smart laddning hemma";
+    else                    heroSub = "om du flyttar " + pubPct + " % av din publika laddning till smart laddning hemma";
     $("ampyEvHeroAnnualSub").textContent = heroSub;
 
     /* SECONDARY 10-year figure — always the net series (investment counted).
@@ -870,12 +860,11 @@
   }
 
   /* =====================================================================
-     RENDER: MONTHLY COST COMPARISON  (publik vs hemma vs hemma-schemalagd, kr/mån)
-     Replaces the payback chart. THREE on-brand bars whose widths are proportional
+     RENDER: MONTHLY COST COMPARISON  (publik vs smart laddning, kr/mån)
+     Replaces the payback chart. TWO on-brand bars whose widths are proportional
      to the monthly cost, plus a "Du sparar ≈ X kr/mån" delta. The numbers count
-     up. The first two reconcile to the annual hero (× 12); the third
-     ("Hemma, schemalagd", owner decision D1) is an additive, visually-subordinate
-     bar showing the optimised-rate cost — it does NOT change the headline saving.
+     up and reconcile to the annual hero (× 12). Home charging = smart/scheduled
+     charging only (owner decision, 2026-06-13); the flat-rate home bar was removed.
      Renders for offert-only boxes too (segment-agnostic — no box price needed).
      ===================================================================== */
   function renderMonthlyComparison(r) {
@@ -885,35 +874,28 @@
     /* Empty / no-saving state: clear the numbers and the bars. publicKwh can be 0
        (0 % public charging) → all costs 0, saving 0; still a valid, honest view. */
     if (!r || r.unavailable || !isFinite(r.monthlySaving)) {
-      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlyHomeOpt","ampyEvMonthlySaving"].forEach(function(id){
+      ["ampyEvMonthlyPublic","ampyEvMonthlyHome","ampyEvMonthlySaving"].forEach(function(id){
         var el = $(id); if (el) el.textContent = "—";
       });
-      block.style.setProperty("--monthly-public-frac",  "0");
-      block.style.setProperty("--monthly-home-frac",    "0");
-      block.style.setProperty("--monthly-homeopt-frac", "0");
+      block.style.setProperty("--monthly-public-frac", "0");
+      block.style.setProperty("--monthly-home-frac",   "0");
       return;
     }
 
-    var pub     = r.monthlyPublicCost;
-    var home    = r.monthlyHomeCost;
-    var homeOpt = r.monthlyHomeOptCost;
+    var pub  = r.monthlyPublicCost;
+    var home = r.monthlyHomeCost;   /* smart home cost */
 
-    /* Bar widths ∝ cost, scaled so the largest bar (public, since publicRate >
-       homeRate > homeRateOpt) fills the track. Guard the divide-by-zero at 0 %
-       public. The optimised bar shares the same maxCost so the staircase reads
-       public > home > schemalagd. */
-    var maxCost     = Math.max(pub, home, homeOpt, 0);
-    var pubFrac     = maxCost > 0 ? pub     / maxCost : 0;
-    var homeFrac    = maxCost > 0 ? home    / maxCost : 0;
-    var homeOptFrac = maxCost > 0 ? homeOpt / maxCost : 0;
-    block.style.setProperty("--monthly-public-frac",  String(pubFrac));
-    block.style.setProperty("--monthly-home-frac",    String(homeFrac));
-    block.style.setProperty("--monthly-homeopt-frac", String(homeOptFrac));
+    /* Bar widths ∝ cost, scaled so the larger bar (public, since publicRate >
+       smart homeRate) fills the track. Guard the divide-by-zero at 0 % public. */
+    var maxCost  = Math.max(pub, home, 0);
+    var pubFrac  = maxCost > 0 ? pub  / maxCost : 0;
+    var homeFrac = maxCost > 0 ? home / maxCost : 0;
+    block.style.setProperty("--monthly-public-frac", String(pubFrac));
+    block.style.setProperty("--monthly-home-frac",   String(homeFrac));
 
-    animateNumber("evMonthlyPublic",  pub,             fmtKr, "ampyEvMonthlyPublic");
-    animateNumber("evMonthlyHome",    home,            fmtKr, "ampyEvMonthlyHome");
-    animateNumber("evMonthlyHomeOpt", homeOpt,         fmtKr, "ampyEvMonthlyHomeOpt");
-    animateNumber("evMonthlySaving",  r.monthlySaving, fmtKr, "ampyEvMonthlySaving");
+    animateNumber("evMonthlyPublic", pub,             fmtKr, "ampyEvMonthlyPublic");
+    animateNumber("evMonthlyHome",   home,            fmtKr, "ampyEvMonthlyHome");
+    animateNumber("evMonthlySaving", r.monthlySaving, fmtKr, "ampyEvMonthlySaving");
   }
 
   /* =====================================================================
@@ -932,18 +914,15 @@
       { h: "2. Vad publik laddning kostar dig",
         c: "offentlig andel × energi × publik taxa (AC " + fmtRate(RATES.publicAcRateSekPerKwh) + " kr/kWh · DC " + fmtRate(RATES.publicDcRateSekPerKwh) + " kr/kWh)",
         p: "Typiska svenska priser 2025 för publik AC- respektive DC-laddning. Du väljer själv vilken typ du oftast använder." },
-      { h: "3. Vad samma laddning kostar hemma",
-        c: "offentlig andel × energi × hemtaxa (1,10–1,80 kr/kWh, SE1–SE4)",
-        p: "Din totala hemma-kostnad per kWh — spotpris, nätavgift och skatt — i snitt för ditt elprisområde." },
+      { h: "3. Vad smart hemmaladdning kostar",
+        c: "offentlig andel × energi × smart hemtaxa (0,60–1,00 kr/kWh, SE1–SE4)",
+        p: "En modern laddbox styr laddningen automatiskt till dygnets billigaste timmar, då spotpriset är 30–60 % lägre. Vi räknar med en smart hemtaxa som i snitt ligger cirka 45 % under att ladda när som helst — inkl. spotpris, nätavgift och skatt. Varierar med elavtal och elområde." },
       { h: "4. Grön Teknik-avdraget",
         c: gronPct + " % av priset, max " + cap1 + " kr/sökande/år (upp till " + RATES.maxApplicants + " sökande)",
         p: "Avdraget är 50 % av arbete och material. Med Skatteverkets schablon på 97 % blir det cirka " + gronPct + " % av totalpriset, vilket vi drar av direkt. Kräver att du äger bostaden, har skatt att dra mot, att installatören har F-skatt och att laddpunkten har uttag enligt EN 62196-2/-3." },
       { h: "5. Varför vi visar ett spann",
         c: "± " + uncertPct + " % på den årliga besparingen",
         p: "Elpriser och körvanor svänger. Spannet visar en realistisk lägsta- och högstanivå — din verkliga besparing landar troligen däremellan." },
-      { h: "6. Schemalagd laddning",
-        c: "hemtaxa × ca 45 % lägre på lågpristimmar",
-        p: "En modern laddbox flyttar laddningen automatiskt till dygnets billigaste timmar, då spotpriset är 30–60 % lägre. I snitt räknar vi med en sänkning på cirka 45 % av hemmakostnaden." },
     ];
     host.innerHTML = items.map(function (it) {
       return '<div class="ampy-calc__methodology-item"><h3>' + it.h + "</h3><code>" + it.c + "</code><p>" + it.p + "</p></div>";
