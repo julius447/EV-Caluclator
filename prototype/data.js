@@ -87,7 +87,7 @@ window.AmpyEvCalcData = {
     {
       "id": "zaptec-go",
       "name": "Zaptec Go",
-      "description": "Kompakt favorit",
+      "description": "Kompakt, upp till 22 kW",
       "badge": "Bästsäljare",
       "maxPowerKw": 22,
       "priceSek": 4490,
@@ -99,7 +99,7 @@ window.AmpyEvCalcData = {
     {
       "id": "zaptec-go-2",
       "name": "Zaptec Go 2",
-      "description": "Inbyggd display",
+      "description": "Nu med inbyggd skärm",
       "badge": "Rekommenderas",
       "maxPowerKw": 22,
       "priceSek": 5890,
@@ -111,7 +111,7 @@ window.AmpyEvCalcData = {
     {
       "id": "easee-charge-up",
       "name": "Easee Charge Up",
-      "description": "Smart & nätt",
+      "description": "Smart laddning via app",
       "badge": "Bästsäljare",
       "maxPowerKw": 22,
       "priceSek": 4390,
@@ -147,7 +147,7 @@ window.AmpyEvCalcData = {
     {
       "id": "tesla-wall-connector",
       "name": "Tesla Wall Connector",
-      "description": "Fast kabel 7,3 m",
+      "description": "Fast kabel, 7,3 m",
       "badge": null,
       "maxPowerKw": 11,
       "priceSek": 4450,
@@ -207,7 +207,7 @@ window.AmpyEvCalcData = {
     {
       "id": "defa-power",
       "name": "Defa Power",
-      "description": "Display & −40 °C",
+      "description": "Display, klarar −40 °C",
       "badge": null,
       "maxPowerKw": 22,
       "priceSek": 5250,
@@ -255,7 +255,7 @@ window.AmpyEvCalcData = {
     {
       "id": "zaptec-pro",
       "name": "Zaptec Pro",
-      "description": "Skalbar för flera platser · offert",
+      "description": "Skalbar för flera platser",
       "badge": "Offert",
       "maxPowerKw": 22,
       "priceSek": null,
