@@ -1193,7 +1193,7 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
                 <span class="ampy-calc__monthly-col-label">
                   Smart laddning
                   <button type="button" class="ampy-calc__tip" aria-label="Mer info"
-                          data-tip="Din laddbox laddar automatiskt när elen är som billigast — spotpriset är 30–60 % lägre under lågpristimmar, vilket sänker din hemmakostnad med i snitt cirka 45 %. Beror på elavtal och elområde.">i</button>
+                          data-tip="Ladda din elbil automatiskt när elen är som billigast — spotpriset är 30–60 % lägre under lågpristimmar, vilket sänker din laddkostnad hemma med i snitt cirka 45 %.">i</button>
                 </span>
                 <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--home ampy-calc__t-mono">
                   <span id="ampyEvMonthlyHome">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>

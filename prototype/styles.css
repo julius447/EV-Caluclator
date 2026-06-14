@@ -869,25 +869,17 @@
   background: var(--action-primary); color: var(--text-inverse); border-color: var(--action-primary); outline: none;
 }
 .ampy-calc__tip:focus-visible { box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.3); }
-/* a11y / touch target (WCAG 2.5.5): on touch/coarse pointers the 1.6rem "i"
-   is far below 44px. Expand the *clickable* box to 4.4rem with transparent
-   padding while a centred ::before keeps the visible circle at 1.6rem, so the
-   layout/visual is unchanged but the tap target is ≥44px. No cursor:help on
-   touch (it behaves like a toggle, not a help cursor). */
+/* a11y / touch target (WCAG 2.5.5): on touch/coarse pointers the 1.6rem "i" is
+   below 44px. Keep the VISIBLE circle at 1.6rem (so the green-on-tap state stays
+   on the small circle and the "i" glyph is never covered) and grow only the
+   INVISIBLE tap target to ≥44px via a transparent centred ::after. No layout
+   shift, no big green box — the small circle just turns green with the "i" still
+   readable (the shared :hover/[aria-expanded] rule above handles the colour). */
 @media (pointer: coarse) {
-  .ampy-calc__tip {
-    width: 4.4rem; height: 4.4rem;
-    border-color: transparent; background: transparent;
-  }
-  .ampy-calc__tip::before {
+  .ampy-calc__tip::after {
     content: ""; position: absolute; top: 50%; left: 50%;
-    width: 1.6rem; height: 1.6rem; transform: translate(-50%, -50%);
-    border-radius: var(--radius-full); border: 1px solid var(--border-default);
-    transition: background var(--motion-fast), border-color var(--motion-fast);
-  }
-  .ampy-calc__tip:hover::before, .ampy-calc__tip:focus-visible::before,
-  .ampy-calc__tip[aria-expanded="true"]::before {
-    background: var(--action-primary); border-color: var(--action-primary);
+    width: 4.4rem; height: 4.4rem; transform: translate(-50%, -50%);
+    border-radius: var(--radius-full);
   }
 }
 
