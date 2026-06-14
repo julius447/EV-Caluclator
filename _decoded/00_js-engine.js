@@ -389,6 +389,25 @@
     var iconFn    = opts.iconFn;
     var onSelect  = opts.onSelect;
 
+    /* Fill an image holder with the item's photo (imageUrl) when present, else
+       the SVG icon. If the photo fails to load (404/blocked), fall back to the
+       icon automatically so the slot is never empty. imageUrl comes from data.js
+       in the prototype and from the WP media picker (post meta) in production. */
+    function setSelectorImg(holder, item) {
+      holder.innerHTML = "";
+      if (item && item.imageUrl) {
+        var im = document.createElement("img");
+        im.className = "ampy-calc__selector-photo";
+        im.src = item.imageUrl;
+        im.alt = "";
+        im.loading = "lazy";
+        im.addEventListener("error", function () { holder.innerHTML = iconFn(); });
+        holder.appendChild(im);
+      } else {
+        holder.innerHTML = iconFn();
+      }
+    }
+
     var list = $(p + "List" + suffix);
     list.innerHTML = "";
 
@@ -404,7 +423,7 @@
 
       var img       = document.createElement("span");
       img.className = "ampy-calc__selector-img";
-      img.innerHTML = iconFn();
+      setSelectorImg(img, item);
 
       var text      = document.createElement("span");
       text.className= "ampy-calc__selector-text";
@@ -439,7 +458,7 @@
     if (selected) {
       $(p + "Name" + suffix).textContent = selected.name;
       $(p + "Best" + suffix).textContent = selected.description || selected.bestFor || "";
-      $(p + "Img"  + suffix).innerHTML   = iconFn();
+      setSelectorImg($(p + "Img" + suffix), selected);
       var badgeEl = $(p + "Badge" + suffix);
       badgeEl.innerHTML = "";
       if (selected.badge) {

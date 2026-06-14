@@ -226,6 +226,13 @@
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .ampy-calc__selector-img svg { width: 60%; height: 60%; color: var(--text-secondary); }
+/* Product/EV photo fills the square image slot (replaces the SVG icon when an
+   imageUrl is present). object-fit:cover gives a clean square crop for both the
+   square box product shots and landscape car photos. A white slot bg (only when
+   a photo is present) lets transparent product PNG/WebP read cleanly; icon-only
+   slots keep their original subtle bg. :has() is a progressive enhancement. */
+.ampy-calc__selector-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ampy-calc__selector-img:has(.ampy-calc__selector-photo) { background: #fff; }
 .ampy-calc__selector-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
 .ampy-calc__selector-name {
   font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);

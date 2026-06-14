@@ -376,6 +376,8 @@ function ampy_ev_calc_render_metabox( WP_Post $post ): void {
     $delivery_lasterr = get_post_meta( $post->ID, '_ampy_ev_calc_last_delivery_error',     true );
     $default_car      = get_post_meta( $post->ID, '_ampy_ev_calc_default_car',    true );
     $default_charger  = get_post_meta( $post->ID, '_ampy_ev_calc_default_charger',true );
+    $images_json      = get_post_meta( $post->ID, '_ampy_ev_calc_images',         true );
+    $images           = $images_json ? (array) json_decode( $images_json, true )  : [];
     $excel_id         = (int) get_post_meta( $post->ID, '_ampy_ev_calc_excel_id', true );
     $excel_filename   = $excel_id ? basename( get_attached_file( $excel_id ) ) : '';
     $excel_url        = $excel_id ? wp_get_attachment_url( $excel_id )         : '';
@@ -515,6 +517,44 @@ function ampy_ev_calc_render_metabox( WP_Post $post ): void {
         <?php endif; ?>
       </section>
 
+      <?php if ( $ev_models || $chargers ) : ?>
+      <section>
+        <h3>Bilder (elbilar &amp; laddboxar)</h3>
+        <p class="hint">Välj en bild från mediabiblioteket för varje elbil och laddbox. Den visas i kalkylatorn i stället för standardikonen. Lämna tom för att behålla ikonen.</p>
+        <style>
+          #ampy_ev_calc_settings .ampy-imgrow { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f0f0f0; }
+          #ampy_ev_calc_settings .ampy-imgrow__thumb { width:40px; height:40px; border-radius:6px; background:#f3f3f3; flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+          #ampy_ev_calc_settings .ampy-imgrow__thumb img { width:100%; height:100%; object-fit:cover; }
+          #ampy_ev_calc_settings .ampy-imgrow__name { flex:1; font-size:12px; color:#333; }
+          #ampy_ev_calc_settings .ampy-imgrow__name code { font-size:11px; color:#777; }
+        </style>
+        <?php
+        $img_row = function ( $id, $name ) use ( $images ) {
+            $att = isset( $images[ $id ] ) && is_array( $images[ $id ] ) ? $images[ $id ] : [];
+            $url = $att['url'] ?? '';
+            $aid = $att['id']  ?? '';
+            ?>
+            <div class="ampy-imgrow" data-item-id="<?= esc_attr( $id ) ?>">
+              <span class="ampy-imgrow__thumb"><?php if ( $url ) : ?><img src="<?= esc_url( $url ) ?>" alt=""><?php endif; ?></span>
+              <span class="ampy-imgrow__name"><?= esc_html( $name ) ?> <code><?= esc_html( $id ) ?></code></span>
+              <input type="hidden" name="ampy_ev_calc_image[<?= esc_attr( $id ) ?>]" value="<?= esc_attr( $aid ) ?>">
+              <button type="button" class="button ampy-imgrow__pick"><?= $url ? 'Byt bild' : 'Välj bild' ?></button>
+              <button type="button" class="button-link ampy-imgrow__clear" style="<?= $url ? '' : 'display:none;' ?>">Ta bort</button>
+            </div>
+            <?php
+        };
+        ?>
+        <?php if ( $ev_models ) : ?>
+          <p style="margin:10px 0 4px;font-size:11px;font-weight:600;color:#444;">Elbilar:</p>
+          <?php foreach ( $ev_models as $m ) $img_row( $m['id'], $m['name'] ); ?>
+        <?php endif; ?>
+        <?php if ( $chargers ) : ?>
+          <p style="margin:14px 0 4px;font-size:11px;font-weight:600;color:#444;">Laddboxar:</p>
+          <?php foreach ( $chargers as $c ) $img_row( $c['id'], $c['name'] ); ?>
+        <?php endif; ?>
+      </section>
+      <?php endif; ?>
+
       <?php if ( $leads ) :
           $show = array_slice( $leads, 0, 20 ); ?>
       <section>
@@ -555,6 +595,31 @@ function ampy_ev_calc_render_metabox( WP_Post $post ): void {
             });
             frame.open();
         });
+
+        /* Per-item image pickers (elbilar + laddboxar) — choose from the WP
+           media library; stores the attachment id in the row's hidden input. */
+        $(document).on('click', '.ampy-imgrow__pick', function(e){
+            e.preventDefault();
+            var row = $(this).closest('.ampy-imgrow');
+            var picker = wp.media({ title:'Välj bild', button:{text:'Använd bilden'}, multiple:false, library:{type:'image'} });
+            picker.on('select', function(){
+                var att = picker.state().get('selection').first().toJSON();
+                var url = (att.sizes && att.sizes.medium ? att.sizes.medium.url : att.url);
+                row.find('input[type=hidden]').val(att.id);
+                row.find('.ampy-imgrow__thumb').html('<img src="'+url+'" alt="">');
+                row.find('.ampy-imgrow__pick').text('Byt bild');
+                row.find('.ampy-imgrow__clear').show();
+            });
+            picker.open();
+        });
+        $(document).on('click', '.ampy-imgrow__clear', function(e){
+            e.preventDefault();
+            var row = $(this).closest('.ampy-imgrow');
+            row.find('input[type=hidden]').val('');
+            row.find('.ampy-imgrow__thumb').empty();
+            row.find('.ampy-imgrow__pick').text('Välj bild');
+            $(this).hide();
+        });
     }(jQuery));
     </script>
     <?php
@@ -581,6 +646,23 @@ add_action( 'save_post_lead-magnet', function ( int $post_id, WP_Post $post, boo
         sanitize_text_field( $_POST['ampy_ev_calc_default_car'] ?? '' ) );
     update_post_meta( $post_id, '_ampy_ev_calc_default_charger',
         sanitize_text_field( $_POST['ampy_ev_calc_default_charger'] ?? '' ) );
+
+    // Per-item images (elbilar + laddboxar) chosen via the WP media picker.
+    // $_POST['ampy_ev_calc_image'] = [ item_id => attachment_id ]. Resolve each
+    // id to a URL and store a map { item_id => { id, url } } the render merges in.
+    $img_in  = ( isset( $_POST['ampy_ev_calc_image'] ) && is_array( $_POST['ampy_ev_calc_image'] ) )
+        ? wp_unslash( $_POST['ampy_ev_calc_image'] ) : [];
+    $img_map = [];
+    foreach ( $img_in as $item_id => $att_id ) {
+        $att_id = absint( $att_id );
+        if ( ! $att_id ) continue;
+        $url = wp_get_attachment_image_url( $att_id, 'medium' );
+        if ( ! $url ) $url = wp_get_attachment_url( $att_id );
+        if ( ! $url ) continue;
+        $img_map[ sanitize_text_field( (string) $item_id ) ] = [ 'id' => $att_id, 'url' => esc_url_raw( $url ) ];
+    }
+    update_post_meta( $post_id, '_ampy_ev_calc_images',
+        wp_json_encode( $img_map, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 
     // PART 5: admin can clear the delivery-failure counter from the metabox.
     if ( ! empty( $_POST['ampy_ev_calc_reset_delivery_fails'] ) ) {
@@ -965,6 +1047,25 @@ function ampy_render_ev_lead_magnet( $id_or_slug ): string {
             'nonce'   => wp_create_nonce( 'wp_rest' ),
         ]
     );
+
+    /* Merge per-item images chosen in the metabox (WP media library) into the
+       data the frontend reads: set imageUrl on each EV model / charger by id.
+       The engine renders the photo when present and falls back to the SVG icon
+       otherwise, so this is purely additive — no image set = today's icon. */
+    $images_json = get_post_meta( $post_id, '_ampy_ev_calc_images', true );
+    $images_map  = $images_json ? (array) json_decode( $images_json, true ) : [];
+    if ( $images_map ) {
+        foreach ( [ 'EV_MODELS', 'CHARGERS' ] as $grp ) {
+            if ( empty( $js_data[ $grp ] ) || ! is_array( $js_data[ $grp ] ) ) continue;
+            foreach ( $js_data[ $grp ] as &$item ) {
+                $iid = $item['id'] ?? '';
+                if ( $iid !== '' && ! empty( $images_map[ $iid ]['url'] ) ) {
+                    $item['imageUrl'] = $images_map[ $iid ]['url'];
+                }
+            }
+            unset( $item );
+        }
+    }
 
     $default_car_id     = get_post_meta( $post_id, '_ampy_ev_calc_default_car',     true );
     $default_charger_id = get_post_meta( $post_id, '_ampy_ev_calc_default_charger', true );
