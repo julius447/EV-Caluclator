@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>html{font-size:62.5%}</style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="data.js"></script>
+  <title>Ampy — Laddbox-kalkylator (prototyp)</title>
+</head>
+<body>
+
+<div class="ampy-calc-outer">
+<div class="ampy-calc" id="ampyEvCalc"
+     data-default-car-id=""
+     data-default-charger-id="">
+
+  <div class="ampy-calc__container">
+
+    <header class="ampy-calc__header">
+      <span class="ampy-calc__header-label">Laddbox-kalkylator</span>
+      <h1 class="ampy-calc__t-2xl">Hur mycket sparar du på att ladda hemma?</h1>
+    </header>
+
+    <section class="ampy-calc__main" aria-label="Laddbox-kalkylator">
+
+      <!-- ── INPUTS CARD ──────────────────────────────────────────────── -->
+      <div class="ampy-calc__card" aria-label="Inställningar">
+
+        <div class="ampy-calc__tier ampy-calc__tier--primary">
+          <span class="ampy-calc__tier-label">Din elbil och laddbox</span>
+
+          <!-- Car model selector -->
+          <div class="ampy-calc__field ampy-calc__field--prominent">
+            <!-- a11y: was an orphan <label> (no native control to bind 'for' to —
+                 the selector is a custom button/listbox). Now a <span> that the
+                 selector button + listbox reference via aria-labelledby. -->
+            <span class="ampy-calc__field-label-tiny" id="ampyEvCarLabel">Din elbil</span>
+            <div class="ampy-calc__selector" id="ampyEvCarSelectorA" aria-expanded="false">
+              <button type="button"
+                      class="ampy-calc__selector-button ampy-calc__selector-button--prominent"
+                      aria-haspopup="listbox" aria-labelledby="ampyEvCarLabel" id="ampyEvCarButtonA">
+                <span class="ampy-calc__selector-img ampy-calc__selector-img--lg" id="ampyEvCarImgA" aria-hidden="true"></span>
+                <span class="ampy-calc__selector-text">
+                  <span class="ampy-calc__selector-name ampy-calc__selector-name--lg" id="ampyEvCarNameA">—</span>
+                  <span class="ampy-calc__selector-best" id="ampyEvCarBestA">—</span>
+                </span>
+                <span id="ampyEvCarBadgeA"></span>
+                <svg class="ampy-calc__selector-chevron" width="20" height="20" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+         stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <ul class="ampy-calc__selector-list" id="ampyEvCarListA" role="listbox" aria-labelledby="ampyEvCarLabel"></ul>
+            </div>
+          </div>
+
+          <!-- Charger selector -->
+          <div class="ampy-calc__field ampy-calc__field--prominent">
+            <!-- a11y: orphan <label> → <span>, referenced via aria-labelledby. -->
+            <span class="ampy-calc__field-label-tiny" id="ampyEvChargerLabel">Laddbox att installera</span>
+            <div class="ampy-calc__selector" id="ampyEvChargerSelectorA" aria-expanded="false">
+              <button type="button"
+                      class="ampy-calc__selector-button ampy-calc__selector-button--prominent"
+                      aria-haspopup="listbox" aria-labelledby="ampyEvChargerLabel" id="ampyEvChargerButtonA">
+                <span class="ampy-calc__selector-img ampy-calc__selector-img--lg" id="ampyEvChargerImgA" aria-hidden="true"></span>
+                <span class="ampy-calc__selector-text">
+                  <span class="ampy-calc__selector-name ampy-calc__selector-name--lg" id="ampyEvChargerNameA">—</span>
+                  <span class="ampy-calc__selector-best" id="ampyEvChargerBestA">—</span>
+                </span>
+                <span id="ampyEvChargerBadgeA"></span>
+                <svg class="ampy-calc__selector-chevron" width="20" height="20" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+         stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <ul class="ampy-calc__selector-list" id="ampyEvChargerListA" role="listbox" aria-labelledby="ampyEvChargerLabel"></ul>
+            </div>
+          </div>
+        </div><!-- /tier primary -->
+
+        <div class="ampy-calc__tier ampy-calc__tier--modifiers">
+          <span class="ampy-calc__tier-label">Dina körvanor</span>
+
+          <!-- Annual km slider -->
+          <!-- a11y: <label> here has no matching control (custom slider, not a
+               native input), so 'for' is intentionally absent. Instead it gets
+               an id and the slider references it via aria-labelledby. -->
+          <div class="ampy-calc__field ampy-calc__field--prominent">
+            <span class="ampy-calc__field-label-tiny" id="ampyEvKmLabel">Körsträcka per år</span>
+            <span class="ampy-calc__value-prominent ampy-calc__t-mono" id="ampyEvKmDisplay">
+              <span id="ampyEvKmValue">—</span><span class="ampy-calc__value-unit">km/år</span>
+            </span>
+            <div id="ampyEvKmContainer"></div>
+          </div>
+
+          <!-- Public % slider -->
+          <!-- a11y: <label> replaced with <span>+id (no native control to bind
+               'for' to). The slider references this via aria-labelledby. The
+               tooltip button is excluded from the slider's name (see id below). -->
+          <div class="ampy-calc__field ampy-calc__field--prominent">
+            <span class="ampy-calc__field-label-tiny">
+              <span id="ampyEvPctLabel">Andel offentlig laddning</span>
+              <button type="button" class="ampy-calc__tip" aria-label="Mer info"
+                      data-tip="Hur stor del av din laddning du gör publikt idag i stället för hemma. Kalkylen visar vad du sparar genom att flytta den hem.">i</button>
+            </span>
+            <span class="ampy-calc__value-prominent ampy-calc__t-mono" id="ampyEvPctDisplay">
+              <span id="ampyEvPctValue">—</span><span class="ampy-calc__value-unit">%</span>
+            </span>
+            <div id="ampyEvPctContainer"></div>
+          </div>
+
+          <!-- Public type toggle -->
+          <div class="ampy-calc__field">
+            <div class="ampy-calc__field-row">
+              <span class="ampy-calc__field-label">
+                <!-- a11y: id on the text-only span so the toggle group's name
+                     excludes the tooltip button. -->
+                <span id="ampyEvPubTypeLabel">Typ av offentlig laddning</span>
+                <button type="button" class="ampy-calc__tip" aria-label="Mer info"
+                        data-tip="AC = långsam laddning vid parkering och köpcentrum (ca 4,50 kr/kWh). DC = snabbladdning längs vägen (ca 5,50 kr/kWh).">i</button>
+              </span>
+              <!-- a11y: each option is a native <button aria-pressed> — keyboard
+                   operable (Enter/Space) and announced as a pressed/unpressed
+                   toggle button. aria-pressed kept in sync in updatePublicTypeToggle. -->
+              <div class="ampy-calc__toggle" role="group" aria-labelledby="ampyEvPubTypeLabel" id="ampyEvPublicType">
+                <button type="button" class="ampy-calc__toggle-option" data-value="ac" aria-pressed="false">AC</button>
+                <button type="button" class="ampy-calc__toggle-option" data-value="dc" aria-pressed="true">DC</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Region -->
+          <div class="ampy-calc__field">
+            <span class="ampy-calc__field-label">
+              <span id="ampyEvRegionLabel">Elprisområde</span>
+              <button type="button" class="ampy-calc__tip" aria-label="Mer info"
+                      data-tip="Ditt elprisområde (SE1 norr–SE4 söder). Dyrare hemma-el ger något lägre besparing per kWh.">i</button>
+            </span>
+            <div class="ampy-calc__segmented" role="group" aria-labelledby="ampyEvRegionLabel" id="ampyEvRegion"></div>
+          </div>
+
+        </div><!-- /tier modifiers -->
+
+      </div><!-- /.ampy-calc__card (inputs) -->
+
+      <!-- ── RESULTS COLUMN ───────────────────────────────────────────── -->
+      <div class="ampy-calc__result-stack">
+
+        <!-- a11y: aria-live removed from the whole results card. The entire
+             subtree (every tile, the monthly panel, breakdown HTML) was being
+             announced on every keystroke, which flooded SR users. Replaced by
+             a single polite, debounced status region (#ampyEvSrStatus) that
+             announces ONLY the annual-saving headline after input settles. -->
+        <div class="ampy-calc__card ampy-calc__card--surface" aria-label="Resultat">
+
+          <!-- Hero: ANNUAL saving (dominant) — now the first element in the card
+               (the ROI "Med/Utan investering" toggle was removed; the investment
+               is always included). -->
+          <div class="ampy-calc__hero15">
+            <span class="ampy-calc__hero15-eyebrow">Du sparar per år</span>
+            <span class="ampy-calc__hero15-value ampy-calc__t-mono">
+              ≈ <span id="ampyEvAnnualSaving">—</span>
+              <span class="ampy-calc__hero15-unit">kr/år</span>
+            </span>
+            <span class="ampy-calc__hero15-sub" id="ampyEvHeroAnnualSub">
+              jämfört med fortsatt publik laddning
+            </span>
+          </div>
+
+          <!-- a11y: single polite, debounced live region. Announces only the
+               headline annual saving once input settles (see engine.js
+               announceHeadline). Visually hidden; not aria-hidden. -->
+          <div class="ampy-calc__sr-only" id="ampyEvSrStatus" role="status" aria-live="polite" aria-atomic="true"></div>
+
+          <!-- Secondary stat tiles -->
+          <div class="ampy-calc__trio" id="ampyEvTrio">
+            <div class="ampy-calc__trio-tile" id="ampyEvCumulativeTile">
+              <span class="ampy-calc__trio-label" id="ampyEvCumulativeLabel">Sparar på 10 år</span>
+              <span class="ampy-calc__trio-value ampy-calc__t-mono">
+                <span id="ampyEvCumulativeValue">—</span><span class="ampy-calc__trio-unit">kr</span>
+              </span>
+              <span class="ampy-calc__trio-sub" id="ampyEvHero10Sub">—</span>
+            </div>
+
+            <div class="ampy-calc__trio-tile" id="ampyEvNetPayTile">
+              <span class="ampy-calc__trio-label">Att betala<sup>*</sup></span>
+              <span class="ampy-calc__trio-value ampy-calc__t-mono">
+                <span id="ampyEvNetPay">—</span><span class="ampy-calc__trio-unit">kr</span>
+              </span>
+              <span class="ampy-calc__trio-sub" id="ampyEvNetPaySub">—</span>
+            </div>
+          </div>
+
+          <!-- 3-4: divider removed — the monthly panel's own subtle bg separates
+               it from the trio, so a hairline here is a redundant third rule. -->
+
+          <!-- Monthly cost comparison: publik vs hemma (replaces the payback chart).
+               monthlyPublic / monthlyHome = publicKwh × rate ÷ 12; saving = the
+               difference. Reconciles to the annual hero (× 12). Renders for
+               offert-only boxes too (segment-agnostic). -->
+          <div class="ampy-calc__monthly" id="ampyEvMonthly">
+            <div class="ampy-calc__monthly-head">
+              <span class="ampy-calc__evidence-label">Din månadskostnad – offentligt vs hemma</span>
+            </div>
+            <div class="ampy-calc__monthly-cols">
+              <div class="ampy-calc__monthly-col ampy-calc__monthly-col--public">
+                <span class="ampy-calc__monthly-col-label">Offentlig laddning</span>
+                <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--public ampy-calc__t-mono">
+                  <span id="ampyEvMonthlyPublic">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
+                </span>
+              </div>
+              <!-- Home charging = smart charging only (owner decision 2026-06-13):
+                   the flat-rate home bar was removed; this single home bar IS the
+                   smart / scheduled-on-low-price-hours option. Solid (primary) styling. -->
+              <div class="ampy-calc__monthly-col ampy-calc__monthly-col--home">
+                <span class="ampy-calc__monthly-col-label">
+                  Smart laddning
+                  <button type="button" class="ampy-calc__tip" aria-label="Mer info"
+                          data-tip="Ladda din elbil automatiskt när elen är som billigast — spotpriset är 30–60 % lägre under lågpristimmar, vilket sänker din laddkostnad hemma med i snitt cirka 45 %.">i</button>
+                </span>
+                <span class="ampy-calc__monthly-col-value ampy-calc__monthly-col-value--home ampy-calc__t-mono">
+                  <span id="ampyEvMonthlyHome">—</span><span class="ampy-calc__monthly-col-unit">kr/mån</span>
+                </span>
+              </div>
+            </div>
+            <div class="ampy-calc__monthly-delta" id="ampyEvMonthlyDelta">
+              <span class="ampy-calc__monthly-delta-label">Du sparar</span>
+              <span class="ampy-calc__monthly-delta-value ampy-calc__t-mono">
+                <span id="ampyEvMonthlySaving">—</span><span class="ampy-calc__monthly-delta-unit">kr/mån</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Savings breakdown -->
+          <div class="ampy-calc__evidence">
+            <div class="ampy-calc__evidence-head">
+              <span class="ampy-calc__evidence-label">Hur besparingen räknas</span>
+            </div>
+            <div id="ampyEvSavingsBreakdown" style="margin-top:var(--spacing-sm);"></div>
+          </div>
+
+          <hr class="ampy-calc__internal-divider">
+
+          <!-- CTAs -->
+          <div class="ampy-calc__cta-stack">
+
+            <button type="button"
+                    class="ampy-calc__btn ampy-calc__btn--primary ampy-calc__btn--lg ampy-calc__btn--block"
+                    id="ampyEvCtaQuote">
+              Få en laddbox-offert <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5 12h14M13 5l7 7-7 7"/>
+    </svg>
+            </button>
+
+            <form class="ampy-calc__lead-form" id="ampyEvLeadForm" novalidate>
+              <span class="ampy-calc__t-small" style="color:var(--on-surface-text);">
+                Vår laddbox-expert hör av sig med ett offertförslag, oftast inom en arbetsdag.
+              </span>
+              <div class="ampy-calc__lead-form-grid">
+                <div class="ampy-calc__field">
+                  <label class="ampy-calc__field-label" for="ampyEvLeadName">Namn</label>
+                  <input type="text"  class="ampy-calc__input" id="ampyEvLeadName"  required autocomplete="name">
+                  <span class="ampy-calc__input-error" id="ampyEvLeadNameError"></span>
+                </div>
+                <div class="ampy-calc__field">
+                  <label class="ampy-calc__field-label" for="ampyEvLeadEmail">E-post</label>
+                  <input type="email" class="ampy-calc__input" id="ampyEvLeadEmail" required autocomplete="email">
+                  <span class="ampy-calc__input-error" id="ampyEvLeadEmailError"></span>
+                </div>
+                <div class="ampy-calc__field">
+                  <label class="ampy-calc__field-label" for="ampyEvLeadPhone">Telefon</label>
+                  <input type="tel"   class="ampy-calc__input" id="ampyEvLeadPhone" required autocomplete="tel" inputmode="tel">
+                  <span class="ampy-calc__input-error" id="ampyEvLeadPhoneError"></span>
+                </div>
+                <div class="ampy-calc__field">
+                  <label class="ampy-calc__field-label" for="ampyEvLeadZip">Postnummer</label>
+                  <input type="text"  class="ampy-calc__input" id="ampyEvLeadZip"   required autocomplete="postal-code" inputmode="numeric">
+                  <span class="ampy-calc__input-error" id="ampyEvLeadZipError"></span>
+                </div>
+              </div>
+              <!-- GDPR: honeypot. Visually hidden + off the a11y tree + not
+                   tabbable + autocomplete off. A real human never fills it; the
+                   server rejects any submission where it is non-empty. Kept
+                   inside the form so its value lands in buildPayload. -->
+              <div class="ampy-calc__hp" aria-hidden="true">
+                <label for="ampyEvLeadCompany">Lämna detta fält tomt</label>
+                <input type="text" id="ampyEvLeadCompany" name="company"
+                       tabindex="-1" autocomplete="off">
+              </div>
+
+              <!-- GDPR: required, UNTICKED, granular consent. Separate from the
+                   submit action. Article-13 micro-notice + privacy link.
+                   PLACEHOLDER href="/integritetspolicy" — Ampy must point this
+                   at the live policy before go-live. -->
+              <div class="ampy-calc__field ampy-calc__consent">
+                <label class="ampy-calc__consent-row" for="ampyEvLeadConsent">
+                  <input type="checkbox" class="ampy-calc__consent-check"
+                         id="ampyEvLeadConsent" required
+                         aria-describedby="ampyEvLeadConsentNotice ampyEvLeadConsentError">
+                  <span class="ampy-calc__consent-text" id="ampyEvLeadConsentNotice">
+                    Jag samtycker till att Ampy lagrar och behandlar mina
+                    kontakt- och kalkyluppgifter för att kontakta mig med en offert.
+                    Du kan när som helst återkalla samtycket. Se vår
+                    <a href="/integritetspolicy" target="_blank" rel="noopener">integritetspolicy</a>
+                    för hur vi hanterar dina uppgifter och dina rättigheter.
+                  </span>
+                </label>
+                <span class="ampy-calc__input-error" id="ampyEvLeadConsentError"></span>
+              </div>
+
+              <button type="submit" class="ampy-calc__btn ampy-calc__btn--primary ampy-calc__btn--block" id="ampyEvLeadSubmit">
+                <span id="ampyEvLeadSubmitLabel">Skicka offertförfrågan</span>
+              </button>
+            </form>
+
+            <div class="ampy-calc__lead-form-success" id="ampyEvLeadSuccess" role="status">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              <span><strong>Tack!</strong> En expert återkommer inom 24 timmar med en exakt offert. Du får kalkylen mailad till dig.</span>
+            </div>
+
+            <div class="ampy-calc__lead-form-error" id="ampyEvLeadErrorBox" role="alert">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span>Något gick fel. Ring oss på <a href="tel:+46102657979" style="color:inherit;text-decoration:underline;">010-265 79 79</a> så hjälper vi dig direkt.</span>
+            </div>
+
+            <!-- 8c: the whole phrase is ONE inline label so hover/focus draws a
+                 single continuous underline (incl. the dynamic box name, any
+                 length); the arrow is a separate flex sibling and never underlines.
+                 Also promoted to a bordered secondary button (Part 3 / 3-5) so the
+                 two CTAs read as a deliberate primary/secondary pair. -->
+            <a class="ampy-calc__btn-link ampy-calc__btn-link--center ampy-calc__btn-link--bordered" id="ampyEvProductLink" href="#" target="_self">
+              <span class="ampy-calc__btn-link-label">Läs mer om <span id="ampyEvProductLinkName">laddboxen</span></span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
+
+          </div><!-- /.ampy-calc__cta-stack -->
+
+        </div><!-- /.ampy-calc__card--surface -->
+
+        <!-- Methodology -->
+        <section class="ampy-calc__methodology" aria-label="Så har vi räknat">
+          <details class="ampy-calc__disclosure">
+            <summary class="ampy-calc__disclosure-summary ampy-calc__t-subheading"
+                     style="color:var(--text-primary);font-weight:600;">
+              Så har vi räknat
+            </summary>
+            <div class="ampy-calc__disclosure-content">
+              <div class="ampy-calc__methodology-stack" id="ampyEvMethodologyStack"></div>
+              <div class="ampy-calc__disclaimers">
+                <p>
+                  <strong style="color:var(--text-primary);">Så här läser du kalkylen.</strong>
+                  Siffrorna bygger på publik branschdata för 2025–2026. Ditt verkliga utfall beror på
+                  hur du kör, hur du laddar och hur elpriset utvecklas. Kalkylen är en uppskattning —
+                  inte ett erbjudande och inte bindande för Ampy. Vill du ha ett exakt pris, begär en offert.
+                </p>
+                <p>* "Att betala" är ungefärligt pris inkl. installation och moms, med Grön Teknik-avdraget redan avdraget. Slutpriset beror på ditt hem och din installation.</p>
+              </div>
+            </div>
+          </details>
+        </section>
+
+      </div><!-- /.ampy-calc__result-stack -->
+
+    </section><!-- /.ampy-calc__main -->
+
+  </div><!-- /.ampy-calc__container -->
+
+</div><!-- /#ampyEvCalc -->
+</div><!-- /.ampy-calc-outer -->
+
+<script src="engine.js"></script>
+<script>
+  if (window.AmpyEvCalculator) {
+    window.AmpyEvCalculator.submitLead = function (p) {
+      console.log('MOCK submitLead', p);
+      return Promise.resolve({ success: true });
+    };
+  }
+</script>
+</body>
+</html>
