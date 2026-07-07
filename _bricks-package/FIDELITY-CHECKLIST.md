@@ -1,15 +1,14 @@
 # FIDELITY-CHECKLIST — every design atom, tick to confirm the clone matches
 
 **Purpose:** the consolidated, exhaustive, tickable verification that the deployed Bricks clone is
-1-to-1 with `prototype/` on **desktop AND mobile**. Because the CSS and JS ship byte-identical, most
-of this is *"confirm nothing got mangled in transit"* (caching/minification, font loading, rem scale)
-rather than re-authoring. Reference values are verbatim from
-`/Users/juliuscallahan/Desktop/Claude Code/ev-kalkylatorn/prototype/styles.css` (1175 lines,
-`1rem = 10px`) and `…/prototype/engine.js`.
+1-to-1 with the bundled `reference/` on **desktop AND mobile**. Because the CSS and JS ship byte-identical,
+most of this is *"confirm nothing got mangled in transit"* (caching/minification, font loading, rem scale)
+rather than re-authoring. Reference values are verbatim from `reference/styles.css` (1175 lines,
+`1rem = 10px`) and `reference/engine.js`.
 
-> **How to verify:** open the static reference (`prototype/index.html` or the shipped `reference/`)
-> in one tab and the live Bricks page in another. Prefer `getComputedStyle` / DevTools inspection over
-> screenshots for colors, weights, sizes. Diff key elements between the two.
+> **How to verify:** open the static reference (`reference/index.html`) in one tab and the live Bricks
+> page in another. Prefer `getComputedStyle` / DevTools inspection over screenshots for colors, weights,
+> sizes. Diff key elements between the two.
 
 ---
 
@@ -330,6 +329,6 @@ Diff `getComputedStyle` between the static reference and the live Bricks page fo
 - [ ] `.ampy-calc__internal-divider` (`<hr>` — border/margin not overridden by theme)
 - [ ] `.ampy-calc__disclosure-summary` (weight 600, list-marker suppressed)
 
-Any delta = a Bricks/theme rule bleeding in. Fix **narrowly, inside `02_styles.css`**, by adding the
-explicit prototype-matching value to the existing scoped selector (e.g. `text-transform:none` on
+Any delta = a Bricks/theme rule bleeding in. Fix **narrowly, inside `snippets/CSS.css`**, by adding the
+explicit reference-matching value to the existing scoped selector (e.g. `text-transform:none` on
 `.ampy-calc__btn` if the theme uppercases buttons). **Never** use a blanket `all:revert`/`all:unset`.

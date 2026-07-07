@@ -53,9 +53,9 @@ is already 1-to-1 with the reference in the parts that produce visible pixels.
 
 | # | FluentSnippet | Source file (paste VERBATIM unless noted) | FluentSnippets Run Location |
 |---|---|---|---|
-| **1** | **CSS** | `_decoded/02_styles.css` — **verbatim, byte-for-byte** | **Frontend**, output in **`wp_head`** |
-| **2** | **PHP + render** | `_decoded/01_backend.php` — verbatim **except the two additions in §3** | **Frontend & Backend** (PHP snippet) |
-| **3** | **JS engine** | `_decoded/00_js-engine.js` — **verbatim, byte-for-byte** | **Frontend**, output in **`wp_footer`** |
+| **1** | **CSS** | `snippets/CSS.css` — **verbatim, byte-for-byte** | **Frontend**, output in **`wp_head`** |
+| **2** | **PHP + render** | `snippets/PHP-HTML.php` — verbatim (the two §3 additions are **already baked in**) | **Frontend & Backend** (PHP snippet) |
+| **3** | **JS engine** | `snippets/JAVASCRIPT.js` — **verbatim, byte-for-byte** | **Frontend**, output in **`wp_footer`** |
 
 Ordering contract at runtime: **head CSS → body render (prints inline `window.AmpyEvCalcData` + the
 markup) → footer JS**. The engine's first executable line is `if (!window.AmpyEvCalcData) return;`,
@@ -145,13 +145,13 @@ Nothing to remove.
 
 ## 5. EXACT FLUENTSNIPPETS RUN LOCATIONS (restate for the runbook)
 
-- **Snippet 1 — CSS** (`02_styles.css`, verbatim): **Frontend → `wp_head`.** In the head so the
+- **Snippet 1 — CSS** (`snippets/CSS.css`, verbatim): **Frontend → `wp_head`.** In the head so the
   calculator paints styled on first render (no FOUC).
-- **Snippet 2 — PHP + render** (`01_backend.php`, + §3 additions): **Frontend & Backend.** Backend is
-  required for the metabox (`lead-magnet` CPT) + `save_post`; Frontend for the render + REST routes
-  (`ampy-ev-calc/v1/data`, `/lead`).
-- **Snippet 3 — JS engine** (`00_js-engine.js`, verbatim): **Frontend → `wp_footer`.** After the DOM +
-  the inline data. Never `<head>`, never `defer`/`async` in a way that reorders it before the data.
+- **Snippet 2 — PHP + render** (`snippets/PHP-HTML.php`, §3 additions already baked in): **Frontend &
+  Backend.** Backend is required for the metabox (`lead-magnet` CPT) + `save_post`; Frontend for the
+  render + REST routes (`ampy-ev-calc/v1/data`, `/lead`).
+- **Snippet 3 — JS engine** (`snippets/JAVASCRIPT.js`, verbatim): **Frontend → `wp_footer`.** After the
+  DOM + the inline data. Never `<head>`, never `defer`/`async` in a way that reorders it before the data.
 
 ---
 
@@ -166,7 +166,7 @@ Both resolve to the same `ampy_render_ev_lead_magnet()` output.
 // or: echo ampy_render_ev_lead_magnet( get_the_ID() );       // auto, on the lead-magnet post
 ```
 
-**Option B — the shortcode** (`01_backend.php:1458`), in a Bricks Shortcode element or content area:
+**Option B — the shortcode** (`snippets/PHP-HTML.php:1471`), in a Bricks Shortcode element or content area:
 ```
 [ampy_ev_lead_magnet slug="laddboxkalkylator"]
 [ampy_ev_lead_magnet id="56467"]
@@ -186,14 +186,13 @@ delete the `.ampy-calc-outer` wrapper.
 
 ## 7. THE STATIC HTML FALLBACK — ship it as the visual-truth REFERENCE, not the production path
 
-You already have a runnable, byte-identical clone: `prototype/index.html` + `data.js` + `styles.css` +
-`engine.js`. Because its `<head>` supplies both ambient dependencies explicitly (global 62.5% + the
-3-family font link) and its CSS/JS are the production bytes, it is **guaranteed pixel-identical** to
-the intended production output with zero WordPress/Bricks/Core-Framework variables in play.
+The package ships a runnable, byte-identical clone in **`reference/`** (`index.html` + `data.js` +
+`styles.css` + `engine.js`). Because its `<head>` supplies both ambient dependencies explicitly (global
+62.5% + the 3-family font link) and its CSS/JS are the production bytes, it is **guaranteed pixel-identical**
+to the intended production output with zero WordPress/Bricks/Core-Framework variables in play.
 
-**Include it as `reference/` (the acceptance target Chris diffs the live Bricks page against).** It
-de-risks both §3 gaps: if the live page doesn't match this file, the cause is fonts-not-loaded or
-root-not-62.5%.
+**Use `reference/` as the acceptance target Chris diffs the live Bricks page against.** It de-risks both
+§3 gaps: if the live page doesn't match this file, the cause is fonts-not-loaded or root-not-62.5%.
 
 **But it must NOT be the production deploy** — it drops the entire dynamic spine:
 
