@@ -1,0 +1,1367 @@
+<?php
+// <Internal Doc Start>
+/*
+*
+* @description: 
+* @tags: 
+* @group: 
+* @name: Ampy - EV calculator CSS
+* @type: css
+* @status: published
+* @created_by: 13
+* @created_at: 2026-06-18 08:23:47
+* @updated_at: 2026-07-09 11:17:32
+* @is_valid: 1
+* @updated_by: 13
+* @priority: 10
+* @run_at: wp_head
+* @load_as_file: yes
+* @load_in_block_editor: 
+* @condition: {"status":"no","run_if":"assertive","items":[[]]}
+*/
+?>
+<?php if (!defined("ABSPATH")) { return;} // <Internal Doc End> ?>
+/**
+ * Ampy — Battery Calculator CSS
+ * Fluent Snippets: set Run Location → Frontend
+ *
+ * All breakpoints use @container ampy so the calculator responds to its
+ * own container width rather than the viewport. Safe to load globally —
+ * every rule is scoped under .ampy-calc or .ampy-calc-outer.
+ *//* ── Container context ─────────────────────────────────────────────────── */
+.ampy-calc-outer.ampy-ev{
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  container-type: inline-size;
+  container-name: ampy;
+}
+/* ── Root tokens (scoped to component, not :root) ───────────────────────── */
+.ampy-ev .ampy-calc{
+  --bg-primary:        rgb(247, 249, 251);
+  --bg-surface:        rgb(9, 11, 50);
+  --bg-subtle:         rgb(234, 239, 243);
+  --text-primary:      rgb(15, 18, 60);
+  --text-secondary:    rgb(86, 94, 130);
+  --text-inverse:      rgb(255, 255, 255);
+  /* a11y / WCAG 2.1 AA contrast (audit fix):
+     The teal is used both as a TEXT/icon colour on the light bg (badges,
+     outline buttons, segmented + tick "active", links) and as the CTA button
+     fill behind WHITE text. The original rgb(0,169,145) failed AA in both
+     directions (≈2.9:1 white-on-teal, ≈2.8:1 teal-on-light-bg). Darkened to
+     rgb(0,125,107): ≈5.07:1 white-on-teal and ≈4.80:1 teal-on-light-bg — both
+     pass AA for normal text.
+     ── OWNER-FLAGGED ──────────────────────────────────────────────────────
+     These --action-* tokens are a LOCAL prototype copy. The shared
+     FluentSnippets stylesheet defines the same tokens and is consumed by the
+     LED-kalkylatorn and battery-kalkylatorn. Porting this darker teal to the
+     shared snippet will change those calculators' CTA/chart colours too —
+     re-check their contrast + chart legibility before promoting this change. */
+  --action-primary:    rgb(0, 125, 107);
+  --action-secondary:  rgb(0, 150, 130);
+  --state-success:     rgb(57, 194, 129);
+  --state-error:       rgb(214, 76, 76);
+  --state-warning:     rgb(240, 175, 56);
+  --border-default:    rgba(15, 18, 60, 0.12);
+  --border-focus:      rgb(0, 125, 107); /* a11y: matches darkened --action-primary */
+
+  --on-surface-text:           rgba(255, 255, 255, 0.94);
+  --on-surface-text-muted:     rgba(255, 255, 255, 0.66);
+  /* a11y / WCAG 2.1 AA (audit fix): faint captions (hero range, trio-sub,
+     stream sub/pct) on the dark surface were rgba(255,255,255,0.42) ≈ 4.0:1 —
+     fails AA for normal text. Raised to 0.55 ≈ 6.1:1. OWNER-FLAGGED: this
+     token also lives in the shared snippet (LED/battery calcs) — porting it
+     lightens their faint captions too; re-check those before promoting. */
+  --on-surface-text-faint:     rgba(255, 255, 255, 0.55);
+  --on-surface-border:         rgba(255, 255, 255, 0.14);
+  --on-surface-border-strong:  rgba(255, 255, 255, 0.28);
+  --on-surface-subtle-bg:      rgba(255, 255, 255, 0.06);
+
+  --chart-stream-1: rgb(0, 169, 145);
+  --chart-stream-2: rgb(57, 194, 129);
+  --chart-stream-3: rgb(122, 208, 198);
+  --chart-stream-4: rgb(160, 184, 196);
+
+  --chart-line-loss:    rgb(240, 175, 56);
+  --chart-line-profit:  rgb(0, 169, 145);
+  --chart-zone-loss:    rgba(240, 175, 56, 0.18);
+  --chart-zone-profit:  rgba(0, 169, 145, 0.16);
+
+  --spacing-xs:  0.5rem;
+  --spacing-sm:  0.75rem;
+  --spacing-md:  1rem;
+  --spacing-lg:  1.5rem;
+  --spacing-xl:  2rem;
+  --spacing-2xl: 3rem;
+
+  --radius-sm:   0.6rem;
+  --radius-md:   1.2rem;
+  --radius-lg:   2rem;
+  --radius-full: 999rem;
+
+  --shadow-sm: 0 1px 2px rgba(15, 18, 60, 0.06);
+  --shadow-md: 0 0.4rem 1.2rem rgba(15, 18, 60, 0.08);
+  --shadow-lg: 0 1.6rem 4rem rgba(15, 18, 60, 0.14);
+
+  --motion-fast:   150ms;
+  --motion-normal: 300ms;
+  --easing:        cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Point 14 / "blaffigt": four clamp FLOORS lowered one notch so the narrow
+     end (320–375px) reads calmer; the 100cqi interpolation leaves desktop
+     (the ceilings) untouched.
+       --fs-2xl H1 floor       2.2 → 2.0rem
+       --fs-xl  hero unit/value floor 2.0 → 1.8rem
+       --fs-lg  secondary vals floor 1.8 → 1.7rem
+       --fs-4xl hero value floor 4.0 → 3.4rem */
+  --fs-xs:  clamp(1rem,   calc(1rem   + (1.2 - 1)   * ((100cqi - 320px) / 960)), 1.2rem);
+  --fs-sm:  clamp(1.2rem, calc(1.2rem + (1.4 - 1.2) * ((100cqi - 320px) / 960)), 1.4rem);
+  --fs-md:  clamp(1.7rem, calc(1.7rem + (1.8 - 1.7) * ((100cqi - 320px) / 960)), 1.8rem);
+  --fs-lg:  clamp(1.7rem, calc(1.7rem + (2.8 - 1.7) * ((100cqi - 320px) / 960)), 2.8rem);
+  --fs-xl:  clamp(1.8rem, calc(1.8rem + (3.6 - 1.8) * ((100cqi - 320px) / 960)), 3.6rem);
+  --fs-2xl: clamp(2rem,   calc(2rem   + (4.8 - 2)   * ((100cqi - 320px) / 960)), 4.8rem);
+  --fs-3xl: clamp(2.6rem, calc(2.6rem + (6   - 2.6) * ((100cqi - 320px) / 960)), 6rem);
+  --fs-4xl: clamp(3.4rem, calc(3.4rem + (7.5 - 3.4) * ((100cqi - 320px) / 960)), 7.5rem);
+
+  --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body:    "Outfit", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  box-sizing: border-box;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  width: 100%;
+  max-width: 100%;
+}
+
+.ampy-ev .ampy-calc *,
+.ampy-ev .ampy-calc *::before,
+.ampy-ev .ampy-calc *::after{ box-sizing: border-box; }
+
+.ampy-ev .ampy-calc p,
+.ampy-ev .ampy-calc h1,
+.ampy-ev .ampy-calc h2,
+.ampy-ev .ampy-calc h3,
+.ampy-ev .ampy-calc h4,
+.ampy-ev .ampy-calc h5,
+.ampy-ev .ampy-calc ul,
+.ampy-ev .ampy-calc ol,
+.ampy-ev .ampy-calc figure{ margin: 0; padding: 0; }
+
+.ampy-ev .ampy-calc ul,
+.ampy-ev .ampy-calc ol{ list-style: none; }
+
+.ampy-ev :where(.ampy-calc button){ font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; }
+
+.ampy-ev .ampy-calc a{ color: var(--action-primary); text-decoration: none; }
+
+.ampy-ev .ampy-calc a:hover{ text-decoration: underline; }
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__t-display{ font-family: var(--font-heading); font-size: var(--fs-4xl); line-height: 1.0;  font-weight: 700; letter-spacing: -0.02em; }
+
+.ampy-ev .ampy-calc__t-3xl{ font-family: var(--font-heading); font-size: var(--fs-3xl); line-height: 1.1;  font-weight: 700; letter-spacing: -0.02em; }
+
+.ampy-ev .ampy-calc__t-2xl{ font-family: var(--font-heading); font-size: var(--fs-2xl); line-height: 1.2;  font-weight: 700; letter-spacing: -0.015em; }
+
+.ampy-ev .ampy-calc__t-heading{ font-family: var(--font-heading); font-size: var(--fs-xl);  line-height: 1.3;  font-weight: 600; letter-spacing: -0.01em; }
+
+.ampy-ev .ampy-calc__t-subheading{ font-family: var(--font-heading); font-size: var(--fs-lg);  line-height: 1.4;  font-weight: 500; }
+
+.ampy-ev .ampy-calc__t-body{ font-family: var(--font-body);    font-size: var(--fs-md);  line-height: 1.5;  font-weight: 400; }
+
+.ampy-ev .ampy-calc__t-small{ font-family: var(--font-body);    font-size: var(--fs-sm);  line-height: 1.5;  font-weight: 400; }
+
+.ampy-ev .ampy-calc__t-caption{ font-family: var(--font-body);    font-size: var(--fs-xs);  line-height: 1.5;  font-weight: 400; }
+
+.ampy-ev .ampy-calc__t-mono{ font-family: var(--font-mono); font-feature-settings: "tnum" 1, "lnum" 1; }
+/* ── Container ──────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__container{
+  max-width: 128rem;
+  margin: 0 auto;
+  padding: var(--spacing-xl) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__header{ display: flex; flex-direction: column; gap: var(--spacing-xs); text-align: left; }
+
+.ampy-ev .ampy-calc__header-label{
+  color: var(--text-secondary); font-weight: 500;
+  font-size: var(--fs-xs); letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+.ampy-ev .ampy-calc__header h2{ max-width: 80rem; color: var(--text-primary); font-family: var(--font-body); }
+/* ── Calculator layout ──────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__main{
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--spacing-xl);
+  align-items: start;
+}
+
+.ampy-ev .ampy-calc__result-stack{ display: flex; flex-direction: column; gap: var(--spacing-md); min-width: 0; }
+/* ── Card ───────────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__card{
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: var(--spacing-lg);
+  min-width: 0;
+}
+
+.ampy-ev .ampy-calc__card--surface{
+  background: var(--bg-surface);
+  color: var(--text-inverse);
+  border-color: transparent;
+  box-shadow: var(--shadow-lg);
+  background-image:
+    radial-gradient(120% 60% at 90% -10%, rgba(0, 169, 145, 0.28), transparent 60%),
+    radial-gradient(80% 50% at -10% 110%, rgba(57, 194, 129, 0.16), transparent 60%);
+}
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__t-caption,
+.ampy-ev .ampy-calc__card--surface .ampy-calc__field-label,
+.ampy-ev .ampy-calc__card--surface .ampy-calc__t-small{ color: var(--on-surface-text-muted); }
+/* ── Field block ────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__field{ display: flex; flex-direction: column; gap: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__field-row{
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--spacing-md); flex-wrap: wrap;
+}
+
+.ampy-ev .ampy-calc__field-label{
+  font-family: var(--font-heading); font-size: var(--fs-sm);
+  font-weight: 600; color: var(--text-primary); letter-spacing: 0.01em;
+}
+
+.ampy-ev .ampy-calc__field-hint{ font-size: var(--fs-xs); color: var(--text-secondary); }
+
+.ampy-ev .ampy-calc__field-divider{ height: 1px; background: var(--border-default); border: 0; margin: var(--spacing-xs) 0; }
+/* ── Battery selector ───────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__selector{ position: relative; }
+
+.ampy-ev .ampy-calc__selector-button{
+  display: flex; align-items: center; gap: var(--spacing-md);
+  width: 100%; padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-primary); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); text-align: left;
+  transition: border-color var(--motion-fast) var(--easing), box-shadow var(--motion-fast) var(--easing);
+}
+
+.ampy-ev .ampy-calc__selector-button:hover{ border-color: var(--text-secondary); }
+
+.ampy-ev .ampy-calc__selector-button:focus-visible{
+  outline: none; border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.25);
+}
+
+.ampy-ev .ampy-calc__selector-img{
+  width: 4.8rem; height: 4.8rem; flex-shrink: 0;
+  border-radius: var(--radius-sm); background: var(--bg-subtle);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+
+.ampy-ev .ampy-calc__selector-img svg{ width: 60%; height: 60%; color: var(--text-secondary); }
+/* Product/EV photo fills the square image slot (replaces the SVG icon when an
+   imageUrl is present). object-fit:cover gives a clean square crop for both the
+   square box product shots and landscape car photos. A white slot bg (only when
+   a photo is present) lets transparent product PNG/WebP read cleanly; icon-only
+   slots keep their original subtle bg. :has() is a progressive enhancement. */
+.ampy-ev .ampy-calc__selector-photo{ width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.ampy-ev .ampy-calc__selector-img:has(.ampy-calc__selector-photo){ background: #fff; }
+
+.ampy-ev .ampy-calc__selector-text{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+
+.ampy-ev .ampy-calc__selector-name{
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.ampy-ev .ampy-calc__selector-best{ font-size: var(--fs-xs); color: var(--text-secondary); }
+/* Badge placement (Part 3 §3-1): in the SELECTED button it right-aligns before
+   the chevron with a clear gap; in a LIST option it right-aligns but never
+   kisses the edge. */
+.ampy-ev .ampy-calc__selector-button .ampy-calc__badge{ margin-left: auto; margin-right: var(--spacing-sm); }
+
+.ampy-ev .ampy-calc__selector-option .ampy-calc__badge{ margin-left: auto; margin-right: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__selector-chevron{ color: var(--text-secondary); transition: transform var(--motion-fast); }
+
+.ampy-ev .ampy-calc__selector[aria-expanded="true"] .ampy-calc__selector-chevron{ transform: rotate(180deg); }
+/* ── Badges — 3-tier system (point 10 visual half / Part 3 §3-1) ─────────────
+   Same pill geometry, three fills so the eye reads intent at a glance:
+   · Promote (solid teal) — Bästsäljare, Rekommenderas  → the boxes Ampy pushes
+   · Attribute (soft)     — Prisvärd, Dubbel laddning, Populär → helpful descriptor
+   · Flow (muted outline) — Offert, Företag/BRF → "different path", not "buy this"
+   The tier class is mapped from the tag string in engine.js (badgeTierClass). */
+.ampy-ev .ampy-calc__badge{
+  display: inline-block; padding: 0.3rem 0.7rem;
+  background: transparent; color: var(--action-primary);
+  border: 1px solid var(--action-primary);
+  font-size: var(--fs-xs); font-weight: 600;
+  line-height: 1.2; white-space: nowrap;
+  border-radius: var(--radius-full); letter-spacing: 0.02em;
+}
+/* Promote — solid teal, white text (strongest weight). */
+.ampy-ev .ampy-calc__badge--promote{
+  background: var(--action-primary); color: var(--text-inverse);
+  border-color: var(--action-primary);
+}
+/* Attribute — soft teal wash, teal text, no border. */
+.ampy-ev .ampy-calc__badge--soft{
+  background: rgba(0, 125, 107, 0.10); color: var(--action-primary);
+  border-color: transparent;
+}
+/* Flow / neutral — muted hollow. */
+.ampy-ev .ampy-calc__badge--muted,
+.ampy-ev .ampy-calc__badge--flow{ color: var(--text-secondary); border-color: var(--border-default); }
+
+.ampy-ev .ampy-calc__selector-list{
+  position: absolute; top: calc(100% + var(--spacing-xs)); left: 0; right: 0;
+  z-index: 30; background: var(--bg-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  /* 16-box catalogue: the charger list overflows (≈16×63px). Cap the dropdown so
+     it scrolls inside itself and never runs off a short viewport (min() picks the
+     smaller of 50rem and 60vh). overscroll-behavior:contain stops the page from
+     chain-scrolling when the user flicks past the list's end on touch. */
+  max-height: min(50rem, 60vh); overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--spacing-xs); display: none;
+}
+
+.ampy-ev .ampy-calc__selector[aria-expanded="true"] .ampy-calc__selector-list{ display: block; }
+
+.ampy-ev .ampy-calc__selector-option{
+  display: flex; align-items: center; gap: var(--spacing-md);
+  width: 100%; padding: var(--spacing-sm); text-align: left;
+  border-radius: var(--radius-sm); transition: background var(--motion-fast);
+}
+
+.ampy-ev .ampy-calc__selector-option:hover{ background: var(--bg-subtle); }
+
+.ampy-ev .ampy-calc__selector-option:focus-visible{
+  outline: none; background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 2px var(--border-focus);
+}
+
+.ampy-ev .ampy-calc__selector-option[aria-selected="true"]{ background: var(--bg-subtle); }
+
+.ampy-ev .ampy-calc__selector-option:disabled,
+.ampy-ev .ampy-calc__selector-option[aria-disabled="true"]{ opacity: 0.5; cursor: not-allowed; }
+/* ── Capacity slider ────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__slider-wrap{ display: flex; flex-direction: column; gap: var(--spacing-sm); }
+
+.ampy-ev .ampy-calc__slider-value{ font-family: var(--font-mono); font-weight: 700; color: var(--text-primary); font-size: var(--fs-lg); }
+
+.ampy-ev .ampy-calc__slider-value sub{ color: var(--text-secondary); font-size: var(--fs-sm); font-weight: 500; }
+/* Point 11a: at REST the slider lets a vertical page swipe pass through
+   (touch-action: pan-y); the instant a drag is recognised the JS adds
+   .is-dragging → touch-action:none hands the gesture entirely to the slider,
+   killing iOS's scroll-vs-drag disambiguation delay (the real "lag"). */
+.ampy-ev .ampy-calc__slider{ position: relative; height: 4.4rem; user-select: none; touch-action: pan-y; }
+
+.ampy-ev .ampy-calc__slider.is-dragging{ touch-action: none; }
+
+.ampy-ev .ampy-calc__slider-track{
+  position: absolute; top: 50%; transform: translateY(-50%);
+  left: 1.2rem; right: 1.2rem; height: 0.6rem;
+  background: var(--bg-subtle); border-radius: var(--radius-full);
+}
+
+.ampy-ev .ampy-calc__slider-fill{
+  position: absolute; top: 50%; transform: translateY(-50%);
+  left: 1.2rem; height: 0.6rem;
+  background: linear-gradient(90deg, var(--action-primary), var(--state-success));
+  border-radius: var(--radius-full);
+  /* Spec E: the JS expresses fill length as scaleX (transform-origin:left) on a
+     full-travel base width, so it animates on the compositor (no per-frame width
+     reflow). Transition transform too so the snap-on-release glides.
+     Point 11d: release transition is --motion-fast (150ms) so the fill arrives
+     WITH the thumb (also 150ms) instead of trailing by 150ms. */
+  transform-origin: left center;
+  transition: transform var(--motion-fast) var(--easing);
+}
+
+.ampy-ev .ampy-calc__slider-thumb{
+  position: absolute; top: 50%;
+  width: 2.4rem; height: 2.4rem;
+  background: var(--bg-primary); border: 3px solid var(--action-primary);
+  border-radius: var(--radius-full); transform: translate(-50%, -50%);
+  /* Point 11d: `left` settles on the same --motion-fast clock as the fill, so
+     thumb + fill land together on release (Apple-snappy, not sluggish 300ms). */
+  transition: left var(--motion-fast) var(--easing), box-shadow var(--motion-fast), transform var(--motion-fast) var(--easing);
+  box-shadow: var(--shadow-md); cursor: grab;
+}
+/* Spec E: while dragging, kill the fill/thumb transitions so the thumb tracks the
+   pointer 1:1 (no trailing). The JS adds .is-dragging on pointerdown and removes
+   it on pointerup/cancel — removal restores these transitions so the value snaps
+   home smoothly. */
+.ampy-ev .ampy-calc__slider.is-dragging .ampy-calc__slider-fill,
+.ampy-ev .ampy-calc__slider.is-dragging .ampy-calc__slider-thumb{
+  transition: none;
+}
+
+.ampy-ev .ampy-calc__slider.is-dragging .ampy-calc__slider-thumb{ cursor: grabbing; }
+/* a11y / touch target: the thumb is 2.4rem visually but its draggable hit
+   area must be ≥44px. An invisible pseudo-element expands the pointer target
+   to 4.4rem without changing the visible thumb size. */
+.ampy-ev .ampy-calc__slider-thumb::before{
+  content: "";
+  position: absolute; top: 50%; left: 50%;
+  width: 4.4rem; height: 4.4rem;
+  transform: translate(-50%, -50%);
+}
+
+.ampy-ev .ampy-calc__slider-thumb:active{ cursor: grabbing; transform: translate(-50%, -50%) scale(1.08); }
+
+.ampy-ev .ampy-calc__slider:focus-within .ampy-calc__slider-thumb{
+  box-shadow: 0 0 0 4px rgba(0, 125, 107, 0.25), var(--shadow-md);
+}
+
+.ampy-ev .ampy-calc__slider-ticks{
+  display: flex; justify-content: space-between;
+  padding: 0 1.2rem; margin-top: var(--spacing-sm); /* +2.5px: ticks were crowding the thumb */
+  overflow: hidden;
+}
+
+.ampy-ev .ampy-calc__slider-tick{
+  /* P2-2: tick labels move to body font (mono "5k/50k" read techy); mono is
+     reserved for live/animating numbers. */
+  font-family: var(--font-body); font-size: var(--fs-xs); color: var(--text-secondary);
+  cursor: pointer; padding: 0.2rem 0.4rem; border-radius: var(--radius-sm);
+  transition: color var(--motion-fast), background var(--motion-fast);
+  flex-shrink: 1; min-width: 0;
+}
+
+.ampy-ev .ampy-calc__slider-tick:hover{ color: var(--text-primary); }
+
+.ampy-ev .ampy-calc__slider-tick--active{ color: var(--action-primary); font-weight: 700; }
+/* Point 12: a label-less stop renders as a small centered tick mark, not blank
+   text — the scale still reads ("there are more stops here") without collision. */
+.ampy-ev .ampy-calc__slider-tick--marker{ color: transparent; min-width: 0; padding-left: 0; padding-right: 0; }
+
+.ampy-ev .ampy-calc__slider-tick--marker::after{
+  content: ""; display: block; width: 2px; height: 6px; margin: 0 auto;
+  background: var(--border-default); border-radius: 1px;
+}
+
+.ampy-ev .ampy-calc__slider-tick--marker.ampy-calc__slider-tick--active::after{ background: var(--action-primary); }
+/* a11y / touch target (WCAG 2.5.5): tick chips are tiny. On touch pointers
+   grow the tappable box to ≥44px tall via a transparent ::before overlay,
+   leaving the visible label size unchanged. */
+@media (pointer: coarse){
+.ampy-ev .ampy-calc__slider-tick{ position: relative; }
+
+.ampy-ev .ampy-calc__slider-tick::before{
+    content: ""; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 4.4rem; width: 100%; height: 4.4rem;
+  }}
+
+.ampy-ev .ampy-calc__locked-value{
+  display: inline-flex; align-items: center; gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-subtle);
+  border-radius: var(--radius-md); font-family: var(--font-mono);
+  font-weight: 600; color: var(--text-primary);
+}
+
+.ampy-ev .ampy-calc__locked-value svg{ color: var(--text-secondary); }
+/* ── Segmented control ──────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__segmented{
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0.4rem; padding: 0.4rem;
+  background: var(--bg-subtle); border-radius: var(--radius-md);
+}
+
+.ampy-ev .ampy-calc__segmented-option{
+  /* P2-4: shared 4rem min-height with the AC/DC toggle so the control column
+     has even rows on pointer-fine too. */
+  padding: var(--spacing-sm) var(--spacing-xs); min-height: 4rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  color: var(--text-secondary); background: transparent;
+  border-radius: var(--radius-sm);
+  transition: background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
+  text-align: center;
+}
+
+.ampy-ev .ampy-calc__segmented-option:hover{ color: var(--text-primary); }
+
+.ampy-ev .ampy-calc__segmented-option:focus-visible{ outline: none; box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.3); }
+
+.ampy-ev .ampy-calc__segmented-option[aria-pressed="true"]{
+  /* P2-4: 1px ring on the active pill for sunlight legibility on a phone. */
+  background: var(--bg-primary); color: var(--action-primary);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border-default);
+}
+/* a11y / touch target (WCAG 2.5.5): ensure each segment is ≥44px tall on touch. */
+@media (pointer: coarse){
+.ampy-ev .ampy-calc__segmented-option{ min-height: 4.4rem; }}
+/* ── Toggle ─────────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__toggle{
+  display: inline-flex; background: var(--bg-subtle);
+  border-radius: var(--radius-full); padding: 0.4rem; gap: 0.2rem;
+}
+
+.ampy-ev .ampy-calc__toggle-option{
+  padding: 0.6rem var(--spacing-md); border-radius: var(--radius-full);
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  transition: background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
+  /* P2-4: shared 4rem min-height with the segmented control (even rows). */
+  min-width: 6.4rem; min-height: 4rem;
+  display: inline-flex; align-items: center; justify-content: center; text-align: center;
+}
+
+.ampy-ev .ampy-calc__toggle-option:hover:not([aria-pressed="true"]){ color: var(--text-primary); }
+
+.ampy-ev .ampy-calc__toggle-option:focus-visible{ outline: none; box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.3); }
+
+.ampy-ev .ampy-calc__toggle-option[aria-pressed="true"]{
+  background: var(--action-primary); color: var(--text-inverse); box-shadow: var(--shadow-sm);
+}
+
+.ampy-ev .ampy-calc__toggle--disabled .ampy-calc__toggle-option{ opacity: 0.5; cursor: not-allowed; }
+/* a11y / touch target (WCAG 2.5.5): toggle pills (AC/DC + the redesigned ROI
+   "Med/Utan investering" segmented control) ≥44px tall on touch. */
+@media (pointer: coarse){
+.ampy-ev .ampy-calc__toggle-option{
+    min-height: 4.4rem; display: inline-flex; align-items: center; justify-content: center;
+  }}
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__btn{
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg); border-radius: var(--radius-md);
+  font-family: var(--font-heading); font-weight: 600; font-size: var(--fs-sm);
+  transition: opacity var(--motion-fast), background var(--motion-fast), color var(--motion-fast),
+              box-shadow var(--motion-fast), transform var(--motion-fast);
+  text-decoration: none; min-height: 4.8rem;
+}
+
+.ampy-ev .ampy-calc__btn:hover{ opacity: 0.92; }
+
+.ampy-ev .ampy-calc__btn:active{ opacity: 0.82; transform: translateY(1px); }
+
+.ampy-ev .ampy-calc__btn:focus-visible{ outline: none; box-shadow: 0 0 0 4px rgba(0, 125, 107, 0.35); }
+
+.ampy-ev .ampy-calc__btn:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+.ampy-ev .ampy-calc__btn--primary{ background: var(--action-primary); color: var(--text-inverse); box-shadow: var(--shadow-md); }
+
+.ampy-ev .ampy-calc__btn--secondary{ background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-default); }
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__btn--secondary{
+  background: var(--on-surface-subtle-bg); color: var(--text-inverse); border-color: var(--on-surface-border-strong);
+}
+
+.ampy-ev .ampy-calc__btn--ghost{ background: transparent; color: var(--text-primary); }
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__btn--ghost{ color: var(--text-inverse); }
+
+.ampy-ev .ampy-calc__btn--outline{ background: transparent; color: var(--action-primary); border: 1.5px solid var(--action-primary); }
+
+.ampy-ev .ampy-calc__btn--block{ width: 100%; }
+
+.ampy-ev .ampy-calc__btn--lg{ padding: var(--spacing-md) var(--spacing-xl); min-height: 5.6rem; font-size: var(--fs-md); }
+
+.ampy-ev .ampy-calc__btn-spinner{
+  width: 1.6rem; height: 1.6rem; border: 2px solid currentColor;
+  border-right-color: transparent; border-radius: var(--radius-full);
+  animation: ampy-spin 0.8s linear infinite;
+}
+
+@keyframes ampy-spin{ to { transform: rotate(360deg); } }
+/* ── Disclosure ─────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__disclosure{ border-top: 1px solid var(--border-default); padding-top: var(--spacing-md); }
+
+.ampy-ev .ampy-calc__disclosure-summary{
+  display: flex; align-items: baseline; gap: var(--spacing-xs);
+  font-family: var(--font-heading); font-weight: 600; color: var(--text-primary);
+  list-style: none; cursor: pointer; padding: var(--spacing-xs) 0;
+}
+
+.ampy-ev .ampy-calc__disclosure-summary::after{ align-self: center; }
+
+.ampy-ev .ampy-calc__disclosure-summary::-webkit-details-marker{ display: none; }
+
+.ampy-ev .ampy-calc__disclosure-summary::after{
+  content: "▾"; margin-left: auto; color: var(--text-secondary);
+  transition: transform var(--motion-fast);
+}
+
+.ampy-ev .ampy-calc__disclosure[open] .ampy-calc__disclosure-summary::after{ transform: rotate(180deg); }
+
+.ampy-ev .ampy-calc__disclosure-summary:focus-visible{
+  outline: none; box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.3); border-radius: var(--radius-sm);
+}
+
+.ampy-ev .ampy-calc__disclosure-content{ padding-top: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
+/* ── Text inputs ────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__input,
+.ampy-ev .ampy-calc__select{
+  width: 100%; padding: var(--spacing-sm) var(--spacing-md);
+  font: inherit; color: var(--text-primary); background: var(--bg-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast); min-height: 4.8rem;
+}
+
+.ampy-ev .ampy-calc__input:hover,
+.ampy-ev .ampy-calc__select:hover{ border-color: var(--text-secondary); }
+
+.ampy-ev .ampy-calc__input:focus,
+.ampy-ev .ampy-calc__select:focus{
+  outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.2);
+}
+
+.ampy-ev .ampy-calc__input--error{ border-color: var(--state-error); }
+
+.ampy-ev .ampy-calc__input--error:focus{ box-shadow: 0 0 0 3px rgba(214, 76, 76, 0.2); }
+
+.ampy-ev .ampy-calc__input-error{ color: var(--state-error); font-size: var(--fs-xs); margin-top: var(--spacing-xs); }
+/* ── Results panel ──────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__hero{ display: flex; flex-direction: column; gap: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__hero-label{
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text-muted); text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+.ampy-ev .ampy-calc__hero-value{
+  font-family: var(--font-heading); font-size: var(--fs-3xl); line-height: 1.0;
+  font-weight: 700; color: var(--text-inverse); letter-spacing: -0.02em;
+  display: inline-flex; align-items: baseline; gap: 0.6rem;
+}
+
+.ampy-ev .ampy-calc__hero-value sup{ font-size: 0.4em; font-weight: 600; color: var(--on-surface-text-muted); margin-left: 0.2rem; align-self: flex-start; }
+
+.ampy-ev .ampy-calc__hero-unit{ font-size: var(--fs-xl); color: var(--on-surface-text-muted); font-weight: 500; }
+
+.ampy-ev .ampy-calc__hero-sub{ color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+.ampy-ev .ampy-calc__return{ display: flex; flex-direction: column; gap: var(--spacing-xs); padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border); }
+
+.ampy-ev .ampy-calc__return-value{
+  font-family: var(--font-heading); font-size: var(--fs-2xl); line-height: 1.2;
+  font-weight: 700; color: var(--state-success); display: inline-flex; align-items: baseline; gap: 0.6rem;
+}
+
+.ampy-ev .ampy-calc__return-value .ampy-calc__hero-unit{ color: var(--on-surface-text-muted); }
+
+.ampy-ev .ampy-calc__return-range{ color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+/* ── Streams ────────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__streams{ display: flex; flex-direction: column; gap: var(--spacing-md); }
+
+.ampy-ev .ampy-calc__streams-bar{
+  width: 100%; height: 2.4rem; border-radius: var(--radius-full);
+  background: var(--on-surface-subtle-bg); overflow: hidden; display: flex;
+}
+
+.ampy-ev .ampy-calc__streams-segment{ height: 100%; transition: width var(--motion-normal) var(--easing); }
+
+.ampy-ev .ampy-calc__streams-legend{ display: grid; grid-template-columns: 1fr; gap: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__stream-row{
+  display: grid; grid-template-columns: 1.2rem 1fr auto;
+  align-items: baseline; gap: var(--spacing-sm); padding: 0.4rem 0;
+}
+
+.ampy-ev .ampy-calc__stream-dot{ width: 1.2rem; height: 1.2rem; border-radius: var(--radius-full); align-self: center; }
+
+.ampy-ev .ampy-calc__stream-name{ color: var(--on-surface-text); font-size: var(--fs-sm); font-weight: 500; }
+
+.ampy-ev .ampy-calc__stream-name small{ display: block; color: var(--on-surface-text-faint); font-size: var(--fs-xs); font-weight: 400; }
+
+.ampy-ev .ampy-calc__stream-value{
+  font-family: var(--font-mono); color: var(--on-surface-text); font-weight: 600;
+  font-size: var(--fs-sm); text-align: right; white-space: nowrap;
+}
+
+.ampy-ev .ampy-calc__stream-pct{ color: var(--on-surface-text-faint); font-weight: 400; font-size: var(--fs-xs); margin-left: 0.6rem; }
+
+.ampy-ev .ampy-calc__stream-row--zero{ opacity: 0.55; }
+/* ── Monthly cost comparison (publik vs hemma) ──────────────────────────────
+   Two on-brand bars whose widths are proportional to the monthly cost (set via
+   --monthly-public-frac / --monthly-home-frac in JS), plus a full-width delta
+   row. Replaces the payback chart. */
+.ampy-ev .ampy-calc__monthly{
+  display: flex; flex-direction: column; gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--on-surface-subtle-bg); border-radius: var(--radius-md);
+}
+
+.ampy-ev .ampy-calc__monthly-head{ display: flex; align-items: baseline; justify-content: space-between; }
+/* Bar-to-bar gap → --spacing-lg so each cost+bar pair reads as one unit (2 bars). */
+.ampy-ev .ampy-calc__monthly-cols{ display: flex; flex-direction: column; gap: var(--spacing-lg); }
+
+.ampy-ev .ampy-calc__monthly-col{ display: flex; flex-direction: column; gap: var(--spacing-xs); min-width: 0; }
+
+.ampy-ev .ampy-calc__monthly-col-label{
+  font-family: var(--font-body); font-size: var(--fs-xs); color: var(--on-surface-text-muted);
+  font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase;
+}
+
+.ampy-ev .ampy-calc__monthly-col-value{
+  font-family: var(--font-heading); font-size: var(--fs-lg); font-weight: 700;
+  line-height: 1.2; letter-spacing: -0.015em;
+  display: inline-flex; align-items: baseline; gap: 0.4rem; white-space: nowrap;
+}
+
+.ampy-ev .ampy-calc__monthly-col-value--public{ color: var(--state-warning); }
+
+.ampy-ev .ampy-calc__monthly-col-value--home{ color: var(--state-success); }
+
+.ampy-ev .ampy-calc__monthly-col-unit{ font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
+/* Cost bar: a rounded track whose fill width is ∝ the monthly cost. The track
+   is the ::after block; the ::before is the fill, absolutely positioned over it
+   so the two share the same strip. --bar-frac is the per-column proportion. */
+.ampy-ev .ampy-calc__monthly-col{ position: relative; }
+/* Bars are the emotional climax (Part 3 §3-0b): thicken 6→10px and raise the
+   empty-track tint so the capsule reads clearly on the dark card. */
+.ampy-ev .ampy-calc__monthly-col::after{
+  content: ""; display: block; height: 1rem; margin-top: var(--spacing-xs);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px var(--on-surface-border);
+}
+
+.ampy-ev .ampy-calc__monthly-col::before{
+  content: ""; position: absolute; left: 0; bottom: 0; z-index: 1;
+  height: 1rem; border-radius: var(--radius-full);
+  width: calc(100% * var(--bar-frac, 0));
+  transition: width var(--motion-normal) var(--easing);
+}
+/* Per-bar fraction + fill, keyed off explicit modifier classes (NOT nth-child). */
+.ampy-ev .ampy-calc__monthly-col--public{
+  --bar-frac: var(--monthly-public-frac, 0);
+}
+
+.ampy-ev .ampy-calc__monthly-col--public::before{
+  /* P2-1: solid→slightly-darker amber (was fading to translucent, which left
+     the long bar's tip looking unfinished on the dark card). Crisp end cap. */
+  background: linear-gradient(90deg, var(--state-warning), rgb(214, 150, 40));
+}
+
+.ampy-ev .ampy-calc__monthly-col--home{
+  --bar-frac: var(--monthly-home-frac, 0);
+}
+
+.ampy-ev .ampy-calc__monthly-col--home::before{
+  background: linear-gradient(90deg, var(--action-primary), var(--state-success));
+}
+
+.ampy-ev .ampy-calc__monthly-delta{
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--spacing-sm); flex-wrap: wrap;
+  padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border);
+}
+
+.ampy-ev .ampy-calc__monthly-delta-label{
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text);
+}
+
+.ampy-ev .ampy-calc__monthly-delta-value{
+  /* Staircase: the "Du sparar" delta is the payoff line of the panel → --fs-xl,
+     larger than the per-column values (--fs-lg). */
+  font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 700;
+  color: var(--state-success); line-height: 1.2; letter-spacing: -0.015em;
+  display: inline-flex; align-items: baseline; gap: 0.4rem; white-space: nowrap;
+}
+
+.ampy-ev .ampy-calc__monthly-delta-unit{ font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
+/* ── Cumulative callout ─────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__cumulative{
+  display: flex; align-items: baseline; gap: var(--spacing-sm); flex-wrap: wrap;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: linear-gradient(90deg, rgba(0,169,145,0.18), rgba(57,194,129,0.10));
+  border: 1px solid var(--on-surface-border-strong); border-radius: var(--radius-md);
+}
+
+.ampy-ev .ampy-calc__cumulative-label{ color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+
+.ampy-ev .ampy-calc__cumulative-value{ font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 700; color: var(--text-inverse); line-height: 1.3; }
+
+.ampy-ev .ampy-calc__cumulative-suffix{ color: var(--on-surface-text-muted); font-size: var(--fs-sm); }
+/* ── Spec table ─────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__spec-table{ width: 100%; border-collapse: collapse; }
+
+.ampy-ev .ampy-calc__spec-table th,
+.ampy-ev .ampy-calc__spec-table td{
+  padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--on-surface-border);
+  font-size: var(--fs-sm); text-align: left; vertical-align: top;
+}
+
+.ampy-ev .ampy-calc__spec-table th{ color: var(--on-surface-text-muted); font-weight: 500; }
+
+.ampy-ev .ampy-calc__spec-table td{ color: var(--on-surface-text); font-family: var(--font-mono); font-weight: 600; text-align: right; }
+
+.ampy-ev .ampy-calc__spec-table tr:last-child th,
+.ampy-ev .ampy-calc__spec-table tr:last-child td{ border-bottom: 0; }
+/* ── Info note ──────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__info-note{
+  display: flex; gap: var(--spacing-md); align-items: flex-start;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(240, 175, 56, 0.12); border: 1px solid rgba(240, 175, 56, 0.4);
+  border-radius: var(--radius-md);
+}
+
+.ampy-ev .ampy-calc__info-note-icon{ flex-shrink: 0; color: var(--state-warning); width: 2rem; height: 2rem; }
+
+.ampy-ev .ampy-calc__info-note-content{ color: var(--on-surface-text); font-size: var(--fs-sm); line-height: 1.5; }
+
+.ampy-ev .ampy-calc__info-note-content strong{ display: block; margin-bottom: 0.2rem; font-weight: 600; }
+/* ── CTA stack ──────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__cta-stack{
+  display: flex; flex-direction: column; gap: var(--spacing-md);
+  padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border);
+}
+/* ── Lead form ──────────────────────────────────────────────────────────── *//* 3-6 (nested-cards DS violation): the form lives inside the dark surface card;
+   drop its full border so it reads as a SECTION (subtle bg + radius), not a
+   mini-card-in-a-card. */
+.ampy-ev .ampy-calc__lead-form{
+  display: none; flex-direction: column; gap: var(--spacing-md);
+  padding: var(--spacing-md); background: var(--on-surface-subtle-bg);
+  border-radius: var(--radius-md);
+}
+
+.ampy-ev .ampy-calc__lead-form.is-open{ display: flex; }
+
+.ampy-ev .ampy-calc__lead-form-grid{ display: grid; grid-template-columns: 1fr; gap: var(--spacing-md); }
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__input,
+.ampy-ev .ampy-calc__card--surface .ampy-calc__select{
+  background: var(--bg-surface); color: var(--text-inverse); border-color: var(--on-surface-border-strong);
+  -webkit-text-fill-color: var(--text-inverse);
+}
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__input::placeholder{ color: var(--on-surface-text-faint); }
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__field-label{ color: var(--on-surface-text); }
+
+.ampy-ev .ampy-calc__lead-form-success,
+.ampy-ev .ampy-calc__lead-form-error{
+  display: none; align-items: flex-start; gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg); border-radius: var(--radius-md);
+  font-size: var(--fs-sm); line-height: 1.5; color: var(--on-surface-text);
+}
+
+.ampy-ev .ampy-calc__lead-form-success.is-visible,
+.ampy-ev .ampy-calc__lead-form-error.is-visible{ display: flex; }
+
+.ampy-ev .ampy-calc__lead-form-success{ background: rgba(57, 194, 129, 0.14); border: 1px solid rgba(57, 194, 129, 0.4); }
+
+.ampy-ev .ampy-calc__lead-form-error{ background: rgba(214, 76, 76, 0.14);  border: 1px solid rgba(214, 76, 76, 0.4); }
+
+.ampy-ev .ampy-calc__lead-form-success svg{ color: var(--state-success); flex-shrink: 0; }
+
+.ampy-ev .ampy-calc__lead-form-error svg{ color: var(--state-error);   flex-shrink: 0; }
+/* ── GDPR: honeypot ─────────────────────────────────────────────────────────
+   Off-screen, zero-size, non-interactive. Not display:none (some bots skip
+   hidden fields); this keeps it in the DOM/tab-out-of-reach but invisible to
+   humans. aria-hidden on the wrapper keeps it off the a11y tree. */
+.ampy-ev .ampy-calc__hp{
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;
+  pointer-events: none;
+}
+/* ── GDPR: consent checkbox ─────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__consent{ gap: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__consent-row{
+  display: flex; align-items: flex-start; gap: var(--spacing-sm);
+  cursor: pointer;
+}
+
+.ampy-ev .ampy-calc__consent-check{
+  flex-shrink: 0; width: 2rem; height: 2rem; margin: 0;
+  accent-color: var(--action-primary); cursor: pointer;
+}
+
+.ampy-ev .ampy-calc__consent-text{
+  font-size: var(--fs-xs); line-height: 1.5; color: var(--on-surface-text);
+}
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__consent-text{ color: var(--on-surface-text-muted); }
+
+.ampy-ev .ampy-calc__consent-text a{
+  color: var(--text-inverse); text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.ampy-ev .ampy-calc__card--surface .ampy-calc__consent-text a{ color: var(--text-inverse); }
+
+.ampy-ev .ampy-calc__consent-check.ampy-calc__input--error{
+  outline: 2px solid var(--state-error); outline-offset: 2px; border-radius: 2px;
+}
+/* a11y / touch target (WCAG 2.5.5): give the checkbox a ≥44px tap zone via the
+   clickable label row without enlarging the visible box. */
+@media (pointer: coarse){
+.ampy-ev .ampy-calc__consent-row{ min-height: 4.4rem; align-items: center; }}
+/* ── Trust strip ────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__trust-strip{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: var(--spacing-md); padding: var(--spacing-lg);
+  background: var(--bg-subtle); border-radius: var(--radius-lg);
+}
+
+.ampy-ev .ampy-calc__trust-block{ display: flex; gap: var(--spacing-md); align-items: flex-start; padding: var(--spacing-sm); }
+
+.ampy-ev .ampy-calc__trust-block-icon{
+  width: 4rem; height: 4rem; border-radius: var(--radius-md);
+  background: var(--bg-primary); color: var(--action-primary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.ampy-ev .ampy-calc__trust-block-text{ display: flex; flex-direction: column; gap: 0.2rem; }
+
+.ampy-ev .ampy-calc__trust-block-title{ font-family: var(--font-heading); font-weight: 600; color: var(--text-primary); font-size: var(--fs-sm); }
+
+.ampy-ev .ampy-calc__trust-block-sub{ color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.5; }
+/* ── Methodology ────────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__methodology{
+  background: var(--bg-primary); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.ampy-ev .ampy-calc__methodology .ampy-calc__disclosure{ border-top: 0; padding-top: 0; }
+
+.ampy-ev .ampy-calc__methodology .ampy-calc__disclosure-summary{ padding: var(--spacing-xs) 0; }
+
+.ampy-ev .ampy-calc__methodology-stack{ display: flex; flex-direction: column; gap: var(--spacing-md); }
+
+.ampy-ev .ampy-calc__methodology-item{ display: flex; flex-direction: column; gap: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__methodology-item h3{
+  font-family: var(--font-heading); font-weight: 600; color: var(--text-primary);
+  font-size: var(--fs-sm); letter-spacing: 0.01em;
+}
+
+.ampy-ev .ampy-calc__methodology-item p{ color: var(--text-secondary); font-size: var(--fs-xs); line-height: 1.5; }
+
+.ampy-ev .ampy-calc__methodology-item code{
+  align-self: flex-start; font-family: var(--font-mono);
+  background: var(--bg-subtle); padding: 0.2rem var(--spacing-xs);
+  border-radius: var(--radius-sm); color: var(--text-primary); font-weight: 600;
+  font-size: var(--fs-xs); word-break: break-word; white-space: pre-wrap;
+}
+
+.ampy-ev .ampy-calc__disclaimers{
+  margin-top: var(--spacing-md); padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-default); color: var(--text-secondary);
+  font-size: var(--fs-xs); line-height: 1.55; display: flex; flex-direction: column; gap: var(--spacing-sm);
+}
+/* ── Visually hidden ────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__sr-only{
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0;
+}
+/* ── Tier grouping ──────────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__tier{ display: flex; flex-direction: column; gap: var(--spacing-md); }
+
+.ampy-ev .ampy-calc__tier + .ampy-calc__tier{ margin-top: var(--spacing-lg); padding-top: var(--spacing-lg); border-top: 1px solid var(--border-default); }
+/* 3-2: both tiers share one internal gap (the tier+tier border does the
+   separation), so every field-to-field gap reads visually equal. */
+.ampy-ev .ampy-calc__tier--primary{ gap: var(--spacing-md); }
+
+.ampy-ev .ampy-calc__tier-label{
+  /* 3-2: drop the negative margin (let the tier gap do the spacing).
+     P2-3: tracking 0.08→0.06em for a calmer caps style on the light card. */
+  font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.ampy-ev .ampy-calc__field-label-tiny{
+  font-size: var(--fs-xs); color: var(--text-secondary); font-weight: 500;
+  letter-spacing: 0.02em; display: inline-flex; align-items: center; gap: var(--spacing-xs);
+}
+
+.ampy-ev .ampy-calc__field--prominent{ gap: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__value-prominent{
+  font-family: var(--font-mono); font-weight: 700; color: var(--text-primary);
+  font-size: var(--fs-xl); line-height: 1.3; letter-spacing: -0.01em;
+  display: inline-flex; align-items: baseline; gap: 0.6rem; transition: color var(--motion-fast);
+}
+
+.ampy-ev .ampy-calc__value-prominent.is-snap{ animation: ampy-snap-highlight var(--motion-fast) var(--easing); }
+
+@keyframes ampy-snap-highlight{
+  0%   { color: var(--action-primary); transform: scale(1.04); }
+  100% { color: var(--text-primary);   transform: scale(1); }
+}
+
+.ampy-ev .ampy-calc__value-unit{ font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 500; font-family: var(--font-body); }
+
+.ampy-ev .ampy-calc__selector-button--prominent{ padding: var(--spacing-md); }
+/* 3-2: selector img 56→48px so the selected button matches its own dropdown
+   option image (4.8rem) and the inputs card stops reading top-heavy. */
+.ampy-ev .ampy-calc__selector-img--lg{ width: 4.8rem; height: 4.8rem; }
+
+.ampy-ev .ampy-calc__selector-name--lg{ font-family: var(--font-heading); font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
+
+.ampy-ev .ampy-calc__selector-button--on-surface{
+  background: var(--on-surface-subtle-bg); border-color: var(--on-surface-border-strong); color: var(--text-inverse);
+}
+
+.ampy-ev .ampy-calc__selector-button--on-surface .ampy-calc__selector-name{ color: var(--text-inverse); }
+
+.ampy-ev .ampy-calc__selector-button--on-surface .ampy-calc__selector-best{ color: var(--on-surface-text-muted); }
+
+.ampy-ev .ampy-calc__selector-button--on-surface .ampy-calc__selector-img{ background: rgba(255,255,255,0.08); color: var(--on-surface-text-muted); }
+
+.ampy-ev .ampy-calc__selector-button--on-surface:hover{ border-color: var(--on-surface-text-faint); }
+
+.ampy-ev .ampy-calc__field--solar{
+  background: var(--bg-subtle); padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md); margin: 0;
+}
+
+.ampy-ev .ampy-calc__field-hint--conditional{ color: var(--state-warning); font-weight: 500; }
+/* ── Tooltip "i" trigger ────────────────────────────────────────────────────
+   Point 13: the old pure-CSS ::after bubble (full-width slab on mobile, no
+   dismiss/caret/edge-awareness) is replaced by a JS-driven popover element
+   (.ampy-calc__popover, built once per tip in engine.js). The button keeps
+   only the affordance + 44px hit area here; positioning/visibility is the
+   popover's job. */
+.ampy-ev .ampy-calc__tip{
+  width: 1.6rem; height: 1.6rem; border-radius: var(--radius-full);
+  background: transparent; border: 1px solid var(--border-default);
+  color: var(--text-secondary); font-size: 1rem; font-weight: 700;
+  font-family: var(--font-heading);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; margin-left: var(--spacing-xs);
+  transition: background var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast);
+  flex-shrink: 0;
+}
+
+.ampy-ev .ampy-calc__tip:hover,
+.ampy-ev .ampy-calc__tip:focus-visible,
+.ampy-ev .ampy-calc__tip[aria-expanded="true"]{
+  background: var(--action-primary); color: var(--text-inverse); border-color: var(--action-primary); outline: none;
+}
+
+.ampy-ev .ampy-calc__tip:focus-visible{ box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.3); }
+/* a11y / touch target (WCAG 2.5.5): on touch/coarse pointers the 1.6rem "i" is
+   below 44px. Keep the VISIBLE circle at 1.6rem (so the green-on-tap state stays
+   on the small circle and the "i" glyph is never covered) and grow only the
+   INVISIBLE tap target to ≥44px via a transparent centred ::after. No layout
+   shift, no big green box — the small circle just turns green with the "i" still
+   readable (the shared :hover/[aria-expanded] rule above handles the colour). */
+@media (pointer: coarse){
+.ampy-ev .ampy-calc__tip::after{
+    content: ""; position: absolute; top: 50%; left: 50%;
+    width: 4.4rem; height: 4.4rem; transform: translate(-50%, -50%);
+    border-radius: var(--radius-full);
+  }}
+/* ── Tooltip popover (point 13) ──────────────────────────────────────────────
+   Same component desktop + mobile. Opens on hover/focus (desktop) or tap
+   (touch); closes on outside-click / Escape / re-tap (JS). Width-capped so it
+   is NEVER a full-width slab; edge-clamped + caret aimed at the "i" by JS.
+   Appended to <body> (NOT .ampy-calc-outer, whose container-type would re-anchor
+   a fixed child) so it is positioned in true viewport coordinates.
+   NOTE: it lives OUTSIDE .ampy-calc, where the scoped design tokens are not in
+   scope — so every var() carries an explicit fallback matching the component
+   tokens (1rem = 10px here too: this rule sets its own font-size, but rem on
+   <body> follows the host root, so px-equivalent fallbacks are used). */
+.ampy-calc__popover{
+  position: fixed; z-index: 2147483000;
+  box-sizing: border-box;   /* lives on <body>, outside the scoped border-box reset */
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 12px;
+  background: var(--bg-surface, rgb(9, 11, 50));
+  color: var(--on-surface-text, rgba(255, 255, 255, 0.94));
+  font-family: var(--font-body, "Outfit", system-ui, sans-serif); font-weight: 400;
+  /* explicit px (lives on <body>; rem there follows the host root, which may be
+     62.5% in the proto or 16px once G4 scopes it) */
+  font-size: 13px; line-height: 1.45;
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(15, 18, 60, 0.18));
+  text-align: left;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity 150ms cubic-bezier(0.2, 0, 0.2, 1),
+              transform 150ms cubic-bezier(0.2, 0, 0.2, 1),
+              visibility 150ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.ampy-calc__popover[data-open]{
+  opacity: 1; visibility: visible; transform: none; pointer-events: auto;
+}
+/* Caret: a rotated square the JS positions horizontally to stay aimed at the
+   "i". Lives on the edge facing the trigger (toggled via data-placement). */
+.ampy-calc__popover::after{
+  content: ""; position: absolute;
+  left: var(--caret-x, 50%); width: 9px; height: 9px;
+  background: var(--bg-surface, rgb(9, 11, 50)); transform: translateX(-50%) rotate(45deg);
+}
+
+.ampy-calc__popover[data-placement="bottom"]::after{ top: -4px; }
+
+.ampy-calc__popover[data-placement="top"]::after{ bottom: -4px; }
+
+@media (prefers-reduced-motion: reduce){
+.ampy-calc__popover{ transform: none; }}
+/* ── Results hierarchy ──────────────────────────────────────────────────── */
+.ampy-ev .ampy-calc__btn-link{
+  display: inline-flex; align-items: center; gap: var(--spacing-xs);
+  color: var(--on-surface-text-muted); background: transparent; border: 0;
+  font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500;
+  padding: var(--spacing-xs) 0; cursor: pointer; transition: color var(--motion-fast);
+}
+
+.ampy-ev .ampy-calc__btn-link:hover{ color: var(--text-inverse); }
+
+.ampy-ev .ampy-calc__btn-link:focus-visible{ outline: none; box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.4); border-radius: var(--radius-sm); }
+
+.ampy-ev .ampy-calc__btn-link--center{ justify-content: center; align-self: center; }
+/* 8c: the container NEVER underlines (kills the per-flex-item split underline
+   from the global a:hover). Only the inline label underlines, as ONE continuous
+   run spanning "Läs mer om {box}"; the arrow (a flex sibling) stays clean. */
+.ampy-ev .ampy-calc__btn-link,
+.ampy-ev .ampy-calc__btn-link:hover{ text-decoration: none; }
+
+.ampy-ev .ampy-calc__btn-link-label{ display: inline; text-decoration: none; text-underline-offset: 0.25em; }
+
+.ampy-ev .ampy-calc__btn-link:hover .ampy-calc__btn-link-label,
+.ampy-ev .ampy-calc__btn-link:focus-visible .ampy-calc__btn-link-label{ text-decoration: underline; }
+/* 3-5: promote to a bordered secondary button on the dark surface so the two
+   CTAs read as a deliberate primary/secondary pair. */
+.ampy-ev .ampy-calc__btn-link--bordered{
+  width: 100%; min-height: 4.8rem; padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--on-surface-subtle-bg);
+  border: 1px solid var(--on-surface-border-strong);
+  border-radius: var(--radius-md); color: var(--on-surface-text);
+  font-family: var(--font-heading); font-weight: 600;
+  transition: color var(--motion-fast), background var(--motion-fast), border-color var(--motion-fast);
+}
+
+.ampy-ev .ampy-calc__btn-link--bordered:hover{ color: var(--text-inverse); background: rgba(255, 255, 255, 0.10); border-color: var(--on-surface-text-faint); }
+
+.ampy-ev .ampy-calc__hero15{ display: flex; flex-direction: column; gap: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__hero15-eyebrow{
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.ampy-ev .ampy-calc__hero15-value{
+  font-family: var(--font-heading); font-size: var(--fs-4xl); line-height: 1.0;
+  font-weight: 700; color: var(--text-inverse); letter-spacing: -0.03em;
+  display: inline-flex; align-items: baseline; gap: 1.2rem;
+}
+
+.ampy-ev .ampy-calc__hero15-unit{ font-family: var(--font-heading); font-size: var(--fs-xl); font-weight: 500; color: var(--on-surface-text-muted); letter-spacing: -0.01em; }
+/* 3-3: the hero-sub is now the hero's closing line (range removed) — lift colour
+   from muted to full so the owner-loved framing isn't faint. */
+.ampy-ev .ampy-calc__hero15-sub{ color: var(--on-surface-text); font-size: var(--fs-sm); }
+
+.ampy-ev .ampy-calc__hero15-mini{
+  display: inline-block; margin-top: 0.2rem; color: var(--on-surface-text-faint);
+  font-size: var(--fs-xs); text-decoration: underline;
+  text-decoration-color: var(--on-surface-border-strong); text-underline-offset: 0.3em;
+  transition: color var(--motion-fast);
+}
+
+.ampy-ev .ampy-calc__hero15-mini:hover{ color: var(--on-surface-text-muted); text-decoration-color: currentColor; }
+/* Secondary stat tiles. Each tile is a self-contained vertical block so
+   individual tiles (Att betala / Payback) can be hidden by the ROI toggle
+   and the row reflows cleanly. */
+.ampy-ev .ampy-calc__trio{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  column-gap: var(--spacing-lg); row-gap: var(--spacing-md); align-items: start;
+}
+
+.ampy-ev .ampy-calc__trio-tile{ display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+
+.ampy-ev .ampy-calc__trio-label{
+  font-family: var(--font-body); font-size: var(--fs-xs); color: var(--on-surface-text-muted);
+  font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase;
+}
+
+.ampy-ev .ampy-calc__trio-label sup{ font-weight: 600; }
+
+.ampy-ev .ampy-calc__trio-value{
+  font-family: var(--font-heading); font-size: var(--fs-lg); font-weight: 700;
+  line-height: 1.2; color: var(--text-inverse); letter-spacing: -0.015em;
+  display: inline-flex; align-items: baseline; gap: 0.6rem; white-space: nowrap;
+}
+/* Staircase rank 2 (Part 3 §3-0a): the 10-year cumulative is the second-biggest
+   emotional number → bump ONLY that tile's value to --fs-xl. "Att betala" stays
+   --fs-lg, so the squint test reads hero(4xl) → 10-yr+delta(xl) → values(lg). */
+.ampy-ev #ampyEvCumulativeTile .ampy-calc__trio-value{ font-size: var(--fs-xl); }
+
+.ampy-ev .ampy-calc__trio-unit{ font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--on-surface-text-muted); }
+
+.ampy-ev .ampy-calc__trio-sub{ color: var(--on-surface-text-faint); font-size: var(--fs-xs); line-height: 1.5; }
+
+.ampy-ev .ampy-calc__internal-divider{ height: 1px; background: var(--on-surface-border); border: 0; margin: 0; }
+
+.ampy-ev .ampy-calc__evidence-label{
+  font-family: var(--font-heading); font-size: var(--fs-sm); font-weight: 600;
+  color: var(--on-surface-text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.ampy-ev .ampy-calc__evidence{ display: flex; flex-direction: column; gap: var(--spacing-sm); }
+
+.ampy-ev .ampy-calc__evidence-head{ display: flex; align-items: baseline; justify-content: space-between; }
+
+.ampy-ev .ampy-calc__streams-disclosure{ border-top: 1px solid var(--on-surface-border); margin-top: var(--spacing-xs); padding-top: var(--spacing-xs); }
+
+.ampy-ev .ampy-calc__streams-summary{
+  display: flex; align-items: center; gap: var(--spacing-xs); list-style: none;
+  cursor: pointer; color: var(--on-surface-text-muted); font-size: var(--fs-sm);
+  padding: var(--spacing-xs) 0; font-family: var(--font-body); font-weight: 500;
+}
+
+.ampy-ev .ampy-calc__streams-summary::-webkit-details-marker{ display: none; }
+
+.ampy-ev .ampy-calc__streams-summary:hover{ color: var(--text-inverse); }
+
+.ampy-ev .ampy-calc__streams-summary:focus-visible{ outline: none; box-shadow: 0 0 0 3px rgba(0, 125, 107, 0.4); border-radius: var(--radius-sm); }
+
+.ampy-ev .ampy-calc__streams-summary svg{ transition: transform var(--motion-fast); }
+
+.ampy-ev .ampy-calc__streams-disclosure[open] .ampy-calc__streams-summary svg{ transform: rotate(180deg); }
+
+.ampy-ev .ampy-calc__streams-disclosure[open] .ampy-calc__streams-legend{ margin-top: var(--spacing-sm); }
+
+.ampy-ev .ampy-calc__spec-disclosure{ margin-top: var(--spacing-sm); padding-top: var(--spacing-md); border-top: 1px solid var(--on-surface-border); }
+
+.ampy-ev .ampy-calc__spec-summary{
+  display: flex; align-items: center; gap: var(--spacing-xs); list-style: none;
+  cursor: pointer; color: var(--on-surface-text-muted); font-size: var(--fs-sm);
+  font-family: var(--font-body); padding: var(--spacing-xs) 0;
+}
+
+.ampy-ev .ampy-calc__spec-summary::-webkit-details-marker{ display: none; }
+
+.ampy-ev .ampy-calc__spec-summary:hover{ color: var(--text-inverse); }
+
+.ampy-ev .ampy-calc__spec-summary svg{ transition: transform var(--motion-fast); margin-left: auto; }
+
+.ampy-ev .ampy-calc__spec-disclosure[open] .ampy-calc__spec-summary svg{ transform: rotate(180deg); }
+
+.ampy-ev .ampy-calc__spec-disclosure .ampy-calc__spec-table{ margin-top: var(--spacing-sm); }
+
+.ampy-ev .ampy-calc__spec-disclosure .ampy-calc__spec-table th,
+.ampy-ev .ampy-calc__spec-disclosure .ampy-calc__spec-table td{ font-size: var(--fs-xs); padding: var(--spacing-xs) 0; }
+/* ── Staggered reveal animations ────────────────────────────────────────── */
+.ampy-ev .ampy-calc__hero15,
+.ampy-ev .ampy-calc__trio,
+.ampy-ev .ampy-calc__monthly,
+.ampy-ev .ampy-calc__evidence,
+.ampy-ev .ampy-calc__cta-stack{
+  opacity: 0; transform: translateY(0.6rem);
+  animation: ampy-reveal var(--motion-normal) var(--easing) forwards;
+}
+/* P2-6: re-timed after the ROI/range removals so the sequence stays evenly
+   paced and the now-hero monthly panel gets a slightly earlier, more prominent
+   entrance. */
+.ampy-ev .ampy-calc__hero15{ animation-delay:  40ms; }
+
+.ampy-ev .ampy-calc__trio{ animation-delay: 100ms; }
+
+.ampy-ev .ampy-calc__monthly{ animation-delay: 160ms; }
+
+.ampy-ev .ampy-calc__evidence{ animation-delay: 220ms; }
+
+.ampy-ev .ampy-calc__cta-stack{ animation-delay: 280ms; }
+
+@keyframes ampy-reveal{ to { opacity: 1; transform: translateY(0); } }
+/* ── Reduced motion (stays as @media — this is a user preference, not a size) ── */
+@media (prefers-reduced-motion: reduce){
+.ampy-ev .ampy-calc *,
+.ampy-ev .ampy-calc *::before,
+.ampy-ev .ampy-calc *::after{
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }}
+/* ══════════════════════════════════════════════════════════════════════════
+   CONTAINER QUERIES
+   All breakpoints reference the .ampy-calc-outer container (name: ampy),
+   not the viewport. The calculator responds to whatever space it's given.
+   ══════════════════════════════════════════════════════════════════════════ *//* Container gap (point 14.4: tighten header→card on phones).
+   Tooltip anchoring is gone — the popover (point 13) is JS-positioned in
+   viewport coordinates, so it never clips regardless of container width. */
+@container ampy (max-width: 768px){
+.ampy-ev .ampy-calc__container{ gap: var(--spacing-xl); }}
+
+@container ampy (max-width: 600px){
+.ampy-ev .ampy-calc__container{ gap: var(--spacing-lg); }}
+/* Slider ticks — reduce size so labels fit on narrow phones.
+   The km slider also abbreviates "5 000"→"5k" in JS (fmtKmShort). */
+@container ampy (max-width: 500px){
+.ampy-ev .ampy-calc__slider-tick{
+    font-size: 0.9rem;
+    padding: 0.1rem 0.2rem;
+  }}
+/* Point 12: on narrow phones the km slider shows a clean 4-label SUBSET
+   (5k · 20k · 35k · 50k) via the JS visibleTickValues option. Ticks outside
+   that set render as a small 2px tick MARK (.ampy-calc__slider-tick--marker)
+   instead of invisible text, so the scale still reads. The old "blank every
+   interior label" hack is removed. The % slider (5 labelled stops) is left
+   fully labelled. *//* Main grid: two-column → single-column */
+@container ampy (max-width: 960px){
+.ampy-ev .ampy-calc__main{ grid-template-columns: 1fr; }}
+/* ── Mobile sizing pass (point 14 "blaffigt") ───────────────────────────────
+   Container-query scoped — desktop is untouched. Reference width ≈ 344px. */
+@container ampy (max-width: 600px){/* Card padding 20→15px */
+.ampy-ev .ampy-calc__card{ padding: var(--spacing-lg); }
+/* 14.1 H1: cap nearer 24–26px, tighter line-height + tracking so it reads as
+     a confident 2-line headline, not a banner. */
+.ampy-ev .ampy-calc__t-2xl{ font-size: clamp(2rem, 6.4cqi, 2.6rem); line-height: 1.15; letter-spacing: -0.01em; }
+/* 14.2 Selector thumbnails 56→48px; prominent button padding 16→12px. */
+.ampy-ev .ampy-calc__selector-img--lg{ width: 4.8rem; height: 4.8rem; }
+
+.ampy-ev .ampy-calc__selector-button--prominent{ padding: var(--spacing-sm) var(--spacing-md); }
+/* 14.3 Hero number ↔ unit: tighten the gap and step the unit down a token so
+     the big number + "kr/år" never crowd the card edge. */
+.ampy-ev .ampy-calc__hero15-value{ gap: 0.6rem; }
+
+.ampy-ev .ampy-calc__hero15-unit{ font-size: var(--fs-lg); }
+/* 14.4 Dark-card internal rhythm: block gap + monthly panel padding 15→10px
+     (densest block, now 3 bars) so the result column reads tight, not loose. */
+.ampy-ev .ampy-calc__card--surface{ gap: var(--spacing-md); }
+
+.ampy-ev .ampy-calc__monthly{ padding: var(--spacing-md); }
+/* Inputs card: tighten field drift so the two halves stay one rhythm. */
+.ampy-ev .ampy-calc__card{ gap: var(--spacing-md); }}
+/* 14.3b: on the smallest phones step the hero value down one token so it always
+   clears the edge with ≥10px of breathing room. */
+@container ampy (max-width: 480px){
+.ampy-ev .ampy-calc__hero15-value{ font-size: var(--fs-3xl); }}
+/* Card padding sub-step: 15→10px below 420px reclaims ~10px usable width/side. */
+@container ampy (max-width: 420px){
+.ampy-ev .ampy-calc__card{ padding: var(--spacing-md); }}
+/* Streams legend: 1-col → 2-col */
+@container ampy (min-width: 600px){
+.ampy-ev .ampy-calc__streams-legend{
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm) var(--spacing-lg);
+  }}
+/* Lead form grid: 1-col → 2-col */
+@container ampy (min-width: 600px){
+.ampy-ev .ampy-calc__lead-form-grid{ grid-template-columns: 1fr 1fr; }}
+/* Trio (Part 3 §3-4): give the 10-year tile a touch more room at ≥560px; stack
+   below 560px. */
+@container ampy (min-width: 560px){
+.ampy-ev .ampy-calc__trio{ grid-template-columns: 1.2fr 1fr; }}
+
+@container ampy (max-width: 560px){
+.ampy-ev .ampy-calc__trio{ grid-template-columns: 1fr; }}
